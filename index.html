@@ -56,6 +56,9 @@ header.topbar .row{display:flex;align-items:center;gap:12px;max-width:1100px;mar
 .topbar .sub{font-family:var(--font-d);font-size:12px;color:var(--paper-2);opacity:.85;font-weight:500}
 .topbar .spacer{flex:1}
 .chip-conn{font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border-radius:20px;background:rgba(250,246,238,.1);color:var(--paper-2);border:1px solid rgba(248,200,168,.2);white-space:nowrap}
+/* Unidad visible: chip en la cabecera del mark + sufijo en cada columna de la tabla. */
+.unit-pill{font-family:var(--font-d);font-weight:700;font-size:11px;letter-spacing:.04em;padding:4px 10px;border-radius:20px;background:rgba(243,121,51,.18);color:var(--paper);border:1px solid rgba(243,121,51,.55);white-space:nowrap;margin-right:8px}
+.meas th .uh{font-weight:700;color:var(--orange);font-size:10px;letter-spacing:.02em}
 
 section.card{background:#fff;border:1px solid var(--rule);border-radius:var(--radius);margin-bottom:14px;box-shadow:0 1px 3px rgba(33,53,62,.06);overflow:hidden}
 .card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;background:var(--paper-2);border-bottom:1px solid var(--rule)}
@@ -589,7 +592,7 @@ function loadSelectedMark(){
   var cat=cands[0];
   var mk={ id:uid(), markCanon:cat.markCanon||'', nombre:(cat.nombre||'').replace(/\s*\(ejemplo\)\s*/,''), proyecto:cat.proyecto||sesion.hdr.proyecto||'',
     descripcion:cat.descripcion||'', numPlano:cat.numPlano||'', material:cat.material||'', acabado:cat.acabado||'', estado:'abierto',
-    medidas:cat.medidas.map(function(m){return {etiqueta:m.etiqueta,nominal:(m.nominal!=null?m.nominal:''),tolMinus:(m.tolMinus!=null?m.tolMinus:TOL.secc),tolPlus:(m.tolPlus!=null?m.tolPlus:TOL.secc),unidad:m.unidad||'in',tipo:m.tipo||'secc',lecturas:['']}}) };
+    medidas:cat.medidas.map(function(m){var u=((cat.proyecto||'').toUpperCase()==='HARRISON-OWOW')?'in':(m.unidad||'in');return {etiqueta:m.etiqueta,nominal:(m.nominal!=null?m.nominal:''),tolMinus:(m.tolMinus!=null?m.tolMinus:TOL.secc),tolPlus:(m.tolPlus!=null?m.tolPlus:TOL.secc),unidad:u,tipo:m.tipo||'secc',lecturas:['']}}) };
   sesion.marks.push(mk); openMark(mk); toast('Mark cargado: '+mk.nombre);
 }
 function manualMark(){
@@ -610,12 +613,18 @@ function renderOpenMark(){
   var wrap=el('div','mark-open');
   var badge=st.estado==='ok'?'<span class="badge ok">OK</span>':st.estado==='nok'?'<span class="badge nok">Revisar</span>':'<span class="badge pend">En captura</span>';
   var meta=(mk.descripcion?escapeHtml(mk.descripcion)+' · ':'')+(mk.material?escapeHtml(mk.material)+' · ':'')+(mk.numPlano?'Plano '+escapeHtml(mk.numPlano)+' · ':'')+mk.medidas.length+' cotas'+(mk.markCanon?' · <span class="canon">'+escapeHtml(mk.markCanon)+'</span>':'');
-  wrap.appendChild(el('div','mh','<div><div class="mtitle">'+escapeHtml(mk.nombre)+'</div><div class="mmeta">'+meta+'</div></div><div class="spacer"></div>'+badge));
+  // Unidad de la tabla: uniforme si todas las cotas comparten unidad (HARRISON-OWOW
+  // es 100% pulgadas). Visible en cabecera + en cada columna, para no equivocar la captura.
+  var uset={}; mk.medidas.forEach(function(m){uset[(m.unidad||'in')]=1});
+  var uks=Object.keys(uset); var UNI=(uks.length===1?uks[0]:''); var UL=(UNI==='mm'?'mm':(UNI==='in'?'pulg':''));
+  var uh=UL?' <span class="uh">('+UL+')</span>':'';
+  var unitPill=UL?'<span class="unit-pill">'+(UL==='pulg'?'pulgadas ″':'mm')+'</span>':'';
+  wrap.appendChild(el('div','mh','<div><div class="mtitle">'+escapeHtml(mk.nombre)+'</div><div class="mmeta">'+meta+'</div></div><div class="spacer"></div>'+unitPill+badge));
   var ncol=1; mk.medidas.forEach(function(m){ncol=Math.max(ncol,(m.lecturas||[]).length||1)});
   var tw=el('div','tbl-wrap'), tbl=el('table','meas');
-  var thead='<thead><tr><th class="lbl-col">Cota</th><th>Nominal</th><th>Tol−</th><th>Tol+</th>';
-  for(var c=0;c<ncol;c++)thead+='<th>M'+(c+1)+'</th>';
-  thead+='<th>Dec.</th><th>Result.</th><th></th></tr></thead>';
+  var thead='<thead><tr><th class="lbl-col">Cota</th><th>Nominal'+uh+'</th><th>Tol−'+uh+'</th><th>Tol+'+uh+'</th>';
+  for(var c=0;c<ncol;c++)thead+='<th>M'+(c+1)+uh+'</th>';
+  thead+='<th>Dec.'+uh+'</th><th>Result.</th><th></th></tr></thead>';
   tbl.innerHTML=thead;
   var tb=el('tbody'), tabi=100;
   mk.medidas.forEach(function(m,ri){
@@ -648,7 +657,15 @@ function renderOpenMark(){
   var tools=el('div','mark-tools');
   var bAdd=el('button','btn btn-ghost btn-sm','+ Cota'); bAdd.addEventListener('click',function(){mk.medidas.push({etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc,unidad:'in',tipo:'secc',lecturas:['']});save();renderAll();reopenAfter(mk.id)});
   var bCol=el('button','btn btn-ghost btn-sm','+ Lectura (M'+(ncol+1)+')'); bCol.addEventListener('click',function(){mk.medidas.forEach(function(m){if(!m.lecturas)m.lecturas=[''];m.lecturas.push('')});save();renderAll();reopenAfter(mk.id)});
-  tools.appendChild(bAdd); tools.appendChild(bCol); tools.appendChild(el('div','spacer'));
+  tools.appendChild(bAdd); tools.appendChild(bCol);
+  // Quitar la última lectura (columna M) cuando sobra. Solo si hay más de una;
+  // las cotas se borran individualmente con la ✕ al final de cada fila.
+  if(ncol>1){
+    var bDelCol=el('button','btn btn-ghost btn-sm','− Lectura (M'+ncol+')');
+    bDelCol.addEventListener('click',function(){mk.medidas.forEach(function(m){if(m.lecturas&&m.lecturas.length>1)m.lecturas.pop()});save();renderAll();reopenAfter(mk.id)});
+    tools.appendChild(bDelCol);
+  }
+  tools.appendChild(el('div','spacer'));
   var bClose=el('button','btn btn-primary btn-sm','✓ Cerrar mark y seguir');
   bClose.addEventListener('click',function(){mk.estado='cerrado';openId=null;save();renderAll();toast('Mark cerrado — abre el siguiente');$('markSelect').focus();window.scrollTo({top:0,behavior:'smooth'})});
   tools.appendChild(bClose); wrap.appendChild(tools); host.appendChild(wrap);

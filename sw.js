@@ -6,7 +6,7 @@
  * interceptar — el catálogo debe jalarse fresco; la app ya lo cachea en
  * localStorage. Bump CACHE_NAME en cada release para invalidar el shell viejo.
  */
-const CACHE_NAME = 'cami-dim-v2';
+const CACHE_NAME = 'cami-dim-v3';
 const SCOPE_PATH = '/cami-dimensionamiento/';
 const SHELL = [
   SCOPE_PATH,
