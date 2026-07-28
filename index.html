@@ -256,14 +256,12 @@ table.p-tbl td.nok{color:var(--red);font-weight:700}
     </div>
     <div class="card-b" id="hdrBody">
       <div class="grid c3">
-        <div class="field"><label class="lbl">Proyecto</label><input id="h_proyecto" placeholder="p. ej. HARRISON-OWOW"></div>
-        <div class="field"><label class="lbl">Cliente</label><input id="h_cliente" placeholder="Cliente"></div>
-        <div class="field"><label class="lbl">Modo</label><input id="h_modo" placeholder="JV / CAMI"></div>
+        <div class="field"><label class="lbl">Proyecto</label><input id="h_proyecto" list="dlProy" autocomplete="off" placeholder="p. ej. HARRISON-OWOW"><datalist id="dlProy"></datalist></div>
+        <div class="field"><label class="lbl">Fecha</label><input id="h_fecha" type="date"></div>
         <div class="field"><label class="lbl">Inspector QC</label><input id="h_inspector" placeholder="Nombre"></div>
         <div class="field"><label class="lbl">Supervisor CAMI</label><input id="h_supervisor" placeholder="Nombre"></div>
-        <div class="field"><label class="lbl">Fecha</label><input id="h_fecha" type="date"></div>
       </div>
-      <div class="hint">El folio se genera solo al imprimir. Al cargar un proyecto en línea, cliente y modo se completan del catálogo.</div>
+      <div class="hint">El folio se genera solo al imprimir. Empieza a escribir el proyecto y elígelo de la lista para no errar el nombre.</div>
     </div>
   </section>
 
@@ -293,7 +291,8 @@ table.p-tbl td.nok{color:var(--red);font-weight:700}
       <div class="mark-pick">
         <div class="field">
           <label class="lbl">Mark del proyecto</label>
-          <select id="markSelect"></select>
+          <input id="markSelect" list="dlMarks" autocomplete="off" placeholder="Escribe el mark, p. ej. 311B1">
+          <datalist id="dlMarks"></datalist>
         </div>
         <button class="btn btn-primary" id="btnLoadMark">Abrir mark</button>
       </div>
@@ -494,8 +493,10 @@ function attr(s){if(s==null)return'';return String(s).replace(/"/g,'&quot;')}
 
 /* ===== Encabezado ===== */
 function bindHdr(){
-  [['h_proyecto','proyecto'],['h_cliente','cliente'],['h_modo','modo'],['h_inspector','inspector'],['h_supervisor','supervisor'],['h_fecha','fecha']].forEach(function(p){
-    var e=$(p[0]); e.value=sesion.hdr[p[1]]||''; e.addEventListener('input',function(){sesion.hdr[p[1]]=e.value;save()});
+  // Fecha por defecto = hoy (YYYY-MM-DD local) si aún no hay una capturada.
+  if(!sesion.hdr.fecha){ var d=new Date(),p=function(n){return(n<10?'0':'')+n}; sesion.hdr.fecha=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+  [['h_proyecto','proyecto'],['h_inspector','inspector'],['h_supervisor','supervisor'],['h_fecha','fecha']].forEach(function(p){
+    var e=$(p[0]); if(!e)return; e.value=sesion.hdr[p[1]]||''; e.addEventListener('input',function(){sesion.hdr[p[1]]=e.value;save()});
   });
 }
 
@@ -508,6 +509,7 @@ function fetchProyectos(){
     proyectosCat=pickArray(o,['proyectos','items','rows']);
     var sel=$('projSelect'); sel.innerHTML='<option value="">— Elige proyecto —</option>';
     proyectosCat.forEach(function(p){ var name=p.proyecto||p.nombre||p; var o2=el('option'); o2.value=name; o2.textContent=name+(p.modo?' ['+p.modo+']':''); sel.appendChild(o2); });
+    refreshProjDatalist();
     toast(proyectosCat.length+' proyectos'); $('offWarn').style.display='none';
   }).catch(function(e){ showOff('No se pudo listar proyectos ('+e.message+'). Puedes escribir el proyecto en el encabezado y cargar marks igual, o trabajar con lo cacheado.'); });
 }
@@ -549,20 +551,42 @@ function updateSrcChip(){
   c.textContent=s+(sesion.sourceTs?(' · '+sesion.sourceTs.substring(0,10)):'');
 }
 
-/* ===== Selector de mark ===== */
+/* ===== Datalist de proyectos (predictivo en el encabezado) ===== */
+function refreshProjDatalist(){
+  var dl=$('dlProy'); if(!dl)return;
+  var vistos={}, nombres=[];
+  // Primero los del backend; luego los que ya tenga el catálogo cacheado (offline).
+  (proyectosCat||[]).forEach(function(p){ var n=p.proyecto||p.nombre||p; if(n&&!vistos[n]){vistos[n]=1;nombres.push(n);} });
+  catalogo.marcas.forEach(function(m){ var n=m.proyecto; if(n&&!vistos[n]){vistos[n]=1;nombres.push(n);} });
+  dl.innerHTML=''; nombres.forEach(function(n){ var o=el('option'); o.value=n; dl.appendChild(o); });
+}
+
+/* ===== Selector de mark (predictivo con datalist) ===== */
 function renderMarkSelect(){
-  var sel=$('markSelect'); sel.innerHTML='';
-  sel.appendChild(new Option('— Elige un mark —',''));
-  var byP={}; catalogo.marcas.forEach(function(m){var p=m.proyecto||'Sin proyecto';(byP[p]=byP[p]||[]).push(m)});
-  Object.keys(byP).forEach(function(p){
-    var og=el('optgroup'); og.label=p;
-    byP[p].forEach(function(m){ var o=el('option'); o.value=m.id; o.textContent=m.nombre+(m.descripcion?' · '+m.descripcion:'')+' ('+m.medidas.length+')'; og.appendChild(o); });
-    sel.appendChild(og);
+  var dl=$('dlMarks'); if(!dl)return; dl.innerHTML='';
+  // Acota las sugerencias al proyecto del encabezado si hay uno; si no, muestra todo.
+  var proy=(sesion.hdr.proyecto||'').trim();
+  var lista=catalogo.marcas.filter(function(m){ return !proy || (m.proyecto||'')===proy; });
+  if(!lista.length) lista=catalogo.marcas;
+  lista.forEach(function(m){
+    var o=el('option');
+    o.value=m.nombre;                                   // lo que se inserta al elegir
+    o.label=(m.descripcion?m.descripcion+' · ':'')+m.medidas.length+' cota(s)'; // pista visible
+    dl.appendChild(o);
   });
 }
 function loadSelectedMark(){
-  var id=$('markSelect').value; if(!id){toast('Elige un mark o usa “Mark manual”');return;}
-  var cat=catalogo.marcas.filter(function(m){return m.id===id})[0]; if(!cat)return;
+  var raw=($('markSelect').value||'').trim(); if(!raw){toast('Escribe o elige un mark, o usa “Mark manual”');return;}
+  var key=raw.toUpperCase();
+  var proy=(sesion.hdr.proyecto||'').trim();
+  // Resuelve por label (nombre) o por MK-id canónico; prioriza el proyecto activo.
+  var cands=catalogo.marcas.filter(function(m){
+    return (m.nombre||'').toUpperCase()===key || (m.markCanon||'').toUpperCase()===key;
+  });
+  if(proy){ var enProy=cands.filter(function(m){return (m.proyecto||'')===proy;}); if(enProy.length) cands=enProy; }
+  if(!cands.length){ toast('No encontré “'+raw+'” en el catálogo — revisa o usa “Mark manual”'); return; }
+  if(cands.length>1) toast('Hay '+cands.length+' con ese nombre; abro el del proyecto activo');
+  var cat=cands[0];
   var mk={ id:uid(), markCanon:cat.markCanon||'', nombre:(cat.nombre||'').replace(/\s*\(ejemplo\)\s*/,''), proyecto:cat.proyecto||sesion.hdr.proyecto||'',
     descripcion:cat.descripcion||'', numPlano:cat.numPlano||'', material:cat.material||'', acabado:cat.acabado||'', estado:'abierto',
     medidas:cat.medidas.map(function(m){return {etiqueta:m.etiqueta,nominal:(m.nominal!=null?m.nominal:''),tolMinus:(m.tolMinus!=null?m.tolMinus:TOL.secc),tolPlus:(m.tolPlus!=null?m.tolPlus:TOL.secc),unidad:m.unidad||'in',tipo:m.tipo||'secc',lecturas:['']}}) };
@@ -780,7 +804,9 @@ function renderAll(){renderOpenMark();renderMarksList();save()}
 function bindEvents(){
   $('btnFetchProj').addEventListener('click',fetchProyectos);
   $('btnFetchItems').addEventListener('click',fetchItems);
-  $('projSelect').addEventListener('change',function(){if(this.value&&!sesion.hdr.proyecto){sesion.hdr.proyecto=this.value;$('h_proyecto').value=this.value;save()}});
+  $('projSelect').addEventListener('change',function(){if(this.value){sesion.hdr.proyecto=this.value;$('h_proyecto').value=this.value;save();renderMarkSelect()}});
+  // Al escribir/elegir el proyecto en el encabezado, reacota las sugerencias de marks.
+  $('h_proyecto').addEventListener('input',function(){renderMarkSelect()});
   $('btnLoadMark').addEventListener('click',loadSelectedMark);
   $('markSelect').addEventListener('keydown',function(e){if(e.key==='Enter')loadSelectedMark()});
   $('btnManualMark').addEventListener('click',manualMark);
@@ -800,7 +826,7 @@ function bindEvents(){
 }
 function initFlexSeg(){Array.prototype.forEach.call(document.querySelectorAll('#segFlex button'),function(b){b.classList.toggle('on',parseInt(b.dataset.v,10)===sesion.flex)})}
 function init(){
-  load();bindHdr();renderMarkSelect();renderAll();initFlexSeg();updateSrcChip();bindEvents();
+  load();bindHdr();refreshProjDatalist();renderMarkSelect();renderAll();initFlexSeg();updateSrcChip();bindEvents();
   var op=sesion.marks.filter(function(m){return m.estado==='abierto'})[0]; if(op){openId=op.id;renderOpenMark()}
 }
 document.addEventListener('DOMContentLoaded',init);
