@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>CAMI · Dimensionamiento en campo</title>
+<meta name="theme-color" content="#21353E"/>
+<!-- PWA: instalable en iPad con "Agregar a pantalla de inicio". Aditivo — no toca la lógica. -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Dim"/>
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png"/>
+<link rel="icon" type="image/svg+xml" href="icon.svg"/>
+<script>
+/* Registro del service worker (app shell offline). Ruta relativa al scope del
+   módulo. El SW NO intercepta script.google.com — el catálogo QC-03 se jala
+   fresco de la red y la app lo cachea en localStorage. */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function (e) {
+      console.warn('SW no registrado:', e && e.message);
+    });
+  });
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#21353E; --navy-2:#2C4651; --navy-deep:#19272E;
+  --orange:#F37933; --orange-mid:#EF5E39; --prima-red:#E8483F;
+  --paper:#FAF6EE; --paper-2:#F2EBDD;
+  --rule:#E0D7C4; --rule-2:#C8BCA1;
+  --ink:#1A2A32; --ink-soft:#5A6E78;
+  --green:#2E7D5B; --green-bg:#EAF3DE;
+  --amber:#C68A2C; --amber-bg:#FFF4D6;
+  --red:#B33A2A; --red-bg:#FCEBEB;
+  --font-d:'Sora',system-ui,sans-serif; --font-b:'DM Sans',system-ui,sans-serif;
+  --radius:10px; --radius-sm:6px;
+  --fusion:linear-gradient(90deg,var(--orange) 0%,var(--prima-red) 100%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100dvh}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-b);font-size:15px;line-height:1.4;-webkit-text-size-adjust:100%}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(33,53,62,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(33,53,62,.025) 1px,transparent 1px);background-size:12mm 12mm;pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:0 12px 130px}
+
+header.topbar{position:sticky;top:0;z-index:20;background:linear-gradient(100deg,var(--navy) 0%,var(--navy-deep) 100%);color:var(--paper);margin:0 -12px 14px;padding:14px 16px;border-bottom:3px solid transparent;border-image:var(--fusion) 1;box-shadow:0 4px 16px rgba(33,53,62,.18)}
+header.topbar .row{display:flex;align-items:center;gap:12px;max-width:1100px;margin:0 auto}
+.brand-wm{font-family:var(--font-d);font-weight:800;font-size:24px;letter-spacing:.06em;color:var(--paper);line-height:1}
+.brand-wm .dot{color:var(--orange)}
+.eyebrow{font-family:var(--font-d);font-weight:600;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:3px}
+.topbar .sub{font-family:var(--font-d);font-size:12px;color:var(--paper-2);opacity:.85;font-weight:500}
+.topbar .spacer{flex:1}
+.chip-conn{font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border-radius:20px;background:rgba(250,246,238,.1);color:var(--paper-2);border:1px solid rgba(248,200,168,.2);white-space:nowrap}
+
+section.card{background:#fff;border:1px solid var(--rule);border-radius:var(--radius);margin-bottom:14px;box-shadow:0 1px 3px rgba(33,53,62,.06);overflow:hidden}
+.card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;background:var(--paper-2);border-bottom:1px solid var(--rule)}
+.card-h .num{font-family:var(--font-d);font-weight:700;color:var(--orange);font-size:14px}
+.card-h h2{font-family:var(--font-d);font-weight:600;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);flex:1}
+.card-b{padding:14px}
+
+.grid{display:grid;gap:10px 12px}
+.grid.c2{grid-template-columns:1fr 1fr}
+.grid.c3{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+label.lbl{font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+input,select,textarea{font-family:var(--font-b);font-size:15px;color:var(--ink);background:#fff;border:1px solid var(--rule-2);border-radius:var(--radius-sm);padding:9px 10px;width:100%;outline:none;transition:border-color .12s,box-shadow .12s}
+input:focus,select:focus,textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(243,121,51,.16)}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%235A6E78' stroke-width='1.5' fill='none'/></svg>");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+
+.btn{font-family:var(--font-d);font-weight:600;font-size:13px;letter-spacing:.02em;border:none;border-radius:var(--radius-sm);padding:11px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:transform .05s,filter .12s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--orange);color:#fff}
+.btn-primary:hover{filter:brightness(1.05)}
+.btn-navy{background:var(--navy);color:var(--paper)}
+.btn-ghost{background:#fff;color:var(--navy);border:1px solid var(--rule-2)}
+.btn-ghost:hover{background:var(--paper-2)}
+.btn-sm{padding:7px 11px;font-size:12px}
+.btn-danger{background:#fff;color:var(--red);border:1px solid var(--rule-2)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.spacer{flex:1}
+
+.mark-pick{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.mark-pick .field{flex:1;min-width:180px}
+
+.mark-open{border:2px solid var(--orange);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;box-shadow:0 4px 18px rgba(243,121,51,.12)}
+.mark-open .mh{display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(100deg,var(--navy) 0%,var(--navy-deep) 100%);color:var(--paper);flex-wrap:wrap}
+.mark-open .mh .mtitle{font-family:var(--font-d);font-weight:700;font-size:17px;color:var(--paper)}
+.mark-open .mh .mmeta{font-size:11px;color:var(--paper-2);opacity:.85;font-family:var(--font-d);letter-spacing:.03em}
+.mark-open .mh .mmeta .canon{color:var(--paper-2);opacity:.7}
+.badge{font-family:var(--font-d);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:5px}
+.badge.ok{background:var(--green-bg);color:var(--green)}
+.badge.nok{background:var(--red-bg);color:var(--red)}
+.badge.pend{background:var(--paper-2);color:var(--ink-soft)}
+
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.meas{border-collapse:collapse;width:100%;min-width:600px;font-size:14px;background:#fff}
+table.meas th{background:var(--navy);color:var(--paper);font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:8px 6px;text-align:center;white-space:nowrap;border-right:1px solid rgba(255,255,255,.12)}
+table.meas th.lbl-col{text-align:left;position:sticky;left:0;z-index:2}
+table.meas td{border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);padding:4px 5px;text-align:center;vertical-align:middle}
+table.meas td.lbl-col{text-align:left;position:sticky;left:0;background:#fff;z-index:1;font-weight:500;min-width:120px}
+table.meas td input{padding:8px 6px;text-align:center;font-size:15px;border:1px solid transparent;background:var(--paper);border-radius:5px;min-width:62px}
+table.meas td input.lbl-in{text-align:left;background:transparent;font-weight:500;min-width:120px}
+table.meas td input.nom{background:#fff;border:1px solid var(--rule);color:var(--navy);font-weight:600}
+table.meas td input.tin{min-width:52px}
+table.meas td input.read{background:var(--paper-2);font-weight:700;color:var(--navy);font-size:16px}
+table.meas td input.read:focus{background:#fff;border-color:var(--orange);box-shadow:0 0 0 3px rgba(243,121,51,.25);position:relative;z-index:3}
+table.meas td input.read.rok{background:var(--green-bg);color:var(--green)}
+table.meas td input.read.rnok{background:var(--red-bg);color:var(--red)}
+table.meas td.res{font-family:var(--font-d);font-weight:700;font-size:13px}
+table.meas td.res.ok{color:var(--green)}
+table.meas td.res.nok{color:var(--red)}
+table.meas td.res.na{color:var(--ink-soft)}
+table.meas td .dec{font-family:var(--font-d);font-weight:600;color:var(--navy);font-size:13px}
+.row-del{color:var(--red);background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px}
+.mark-tools{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px;background:var(--paper-2);border-top:1px solid var(--rule)}
+
+.mlist-item{border:1px solid var(--rule);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;background:#fff}
+.mlist-head{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer}
+.mlist-head:hover{background:var(--paper)}
+.mlist-head .mn{font-family:var(--font-d);font-weight:700;color:var(--navy);font-size:15px}
+.mlist-head .mc{font-size:12px;color:var(--ink-soft)}
+.mlist-body{padding:0 13px 12px;display:none}
+.mlist-body.show{display:block}
+.mini-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.mini-tbl th{background:var(--paper-2);color:var(--navy);font-family:var(--font-d);font-size:9px;letter-spacing:.05em;text-transform:uppercase;padding:5px 6px;text-align:center;border-bottom:1px solid var(--rule)}
+.mini-tbl th:first-child{text-align:left}
+.mini-tbl td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--rule)}
+.mini-tbl td:first-child{text-align:left}
+.mini-tbl td.ok{color:var(--green);font-weight:600}
+.mini-tbl td.nok{color:var(--red);font-weight:600}
+
+.actionbar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(250,246,238,.96);backdrop-filter:blur(8px);border-top:1px solid var(--rule);padding:10px 12px;box-shadow:0 -4px 16px rgba(33,53,62,.08)}
+.actionbar .inner{display:flex;gap:8px;max-width:1100px;margin:0 auto;flex-wrap:wrap}
+.actionbar .btn{flex:1;min-width:120px}
+
+.tips{background:var(--navy);color:var(--paper-2);border-radius:var(--radius);padding:14px 16px;font-size:13px;line-height:1.5}
+.tips b{color:var(--orange);font-family:var(--font-d)}
+.tips ul{margin:8px 0 0;padding-left:18px}
+.tips li{margin-bottom:5px}
+.tips code{background:rgba(250,246,238,.14);padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px;color:var(--paper)}
+details.help>summary{cursor:pointer;list-style:none;font-family:var(--font-d);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--navy);padding:11px 14px;background:var(--paper-2);border-radius:var(--radius);display:flex;align-items:center;gap:8px}
+details.help>summary::-webkit-details-marker{display:none}
+details.help>summary::before{content:'?';display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:var(--orange);color:#fff;border-radius:50%;font-size:11px;font-weight:700}
+details.help[open]>summary{border-radius:var(--radius) var(--radius) 0 0}
+details.help .tips{border-radius:0 0 var(--radius) var(--radius)}
+
+.empty{text-align:center;color:var(--ink-soft);padding:22px 14px;font-size:14px}
+.hint{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.warn{font-size:12px;color:var(--amber);background:var(--amber-bg);border:1px solid #E9D8A6;border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px}
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{border:none;background:#fff;color:var(--ink-soft);font-family:var(--font-d);font-weight:600;font-size:13px;padding:8px 12px;cursor:pointer}
+.seg button.on{background:var(--navy);color:var(--paper)}
+.srcchip{font-family:var(--font-d);font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:20px;border:1px solid var(--rule-2);color:var(--ink-soft);background:#fff;white-space:nowrap}
+.srcchip.live{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.srcchip.cache{border-color:var(--amber);color:var(--amber);background:var(--amber-bg)}
+
+.modal-bg{position:fixed;inset:0;background:rgba(25,39,46,.55);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto}
+.modal-bg.show{display:flex}
+.modal{background:var(--paper);border-radius:var(--radius);max-width:720px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;margin:auto}
+.modal .mh2{display:flex;align-items:center;padding:14px 16px;background:var(--navy);color:var(--paper)}
+.modal .mh2 h3{font-family:var(--font-d);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;flex:1}
+.modal .mh2 .x{background:none;border:none;color:var(--paper-2);font-size:22px;cursor:pointer;line-height:1}
+.modal .mb2{padding:16px;max-height:70vh;overflow-y:auto}
+.cat-mark{border:1px solid var(--rule);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;background:#fff}
+.cat-mark .cmh{display:flex;align-items:center;gap:8px}
+.cat-mark .cmh .nm{font-family:var(--font-d);font-weight:700;color:var(--navy)}
+.cat-mark .cmm{font-size:12px;color:var(--ink-soft);margin-top:3px}
+textarea.json{font-family:ui-monospace,monospace;font-size:12px;min-height:180px;line-height:1.4;white-space:pre}
+.divider{height:1px;background:var(--rule);margin:14px 0}
+.sec-lbl{font-family:var(--font-d);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
+
+#toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:var(--paper);padding:11px 18px;border-radius:24px;font-family:var(--font-d);font-weight:600;font-size:13px;z-index:60;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.3);border-left:3px solid var(--orange);max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:600px){ .grid.c2,.grid.c3{grid-template-columns:1fr 1fr} .brand-wm{font-size:20px} }
+
+/* ===== PRINT ===== */
+#printroot{display:none}
+@media print{
+  @page{size:letter;margin:12mm 12mm}
+  body{background:#fff;font-size:9pt}
+  body::before{display:none}
+  .app,header.topbar,.actionbar,.modal-bg,#toast{display:none !important}
+  #printroot{display:block !important}
+  .p-doc{page-break-after:always}
+  .p-doc:last-child{page-break-after:auto}
+}
+#printroot{font-family:var(--font-b);color:var(--ink)}
+.p-head{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6mm;background:var(--navy);color:var(--paper);padding:4mm 6mm;border-radius:1mm}
+.p-head .wm{font-family:var(--font-d);font-weight:800;font-size:20pt;letter-spacing:.05em}
+.p-head .wm .dot{color:var(--orange)}
+.p-head .eb{font-family:var(--font-d);font-weight:600;font-size:6.5pt;letter-spacing:.2em;text-transform:uppercase;color:var(--orange)}
+.p-head h1{font-family:var(--font-d);font-weight:700;font-size:12pt;color:var(--paper);line-height:1.1;margin-top:1mm}
+.p-head .ref{text-align:right;font-family:var(--font-d);font-size:6.5pt;letter-spacing:.1em;text-transform:uppercase;color:rgba(250,246,238,.75);line-height:1.5}
+.p-bar{display:flex;justify-content:space-between;background:var(--paper-2);border-left:1.5mm solid var(--orange);border-right:1.5mm solid var(--prima-red);padding:1.5mm 3mm;margin-top:2mm;font-family:var(--font-d);font-size:6.5pt;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.p-bar strong{color:var(--navy)}
+.p-info{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5mm 5mm;margin:4mm 0 3mm}
+.p-info .f{display:flex;flex-direction:column;gap:.5mm}
+.p-info .k{font-family:var(--font-d);font-size:6pt;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
+.p-info .v{border-bottom:.3mm solid var(--navy);min-height:4mm;font-size:8.5pt;padding-bottom:.5mm;font-weight:600;color:var(--navy)}
+.p-mark{margin-top:3mm;break-inside:avoid}
+.p-mark .pm-h{display:flex;align-items:baseline;gap:3mm;border-bottom:.4mm solid var(--orange);padding-bottom:1mm;margin-bottom:1.5mm}
+.p-mark .pm-h .pm-n{font-family:var(--font-d);font-weight:700;font-size:11pt;color:var(--navy)}
+.p-mark .pm-h .pm-c{font-size:7pt;color:var(--ink-soft)}
+.p-mark .pm-h .pm-r{margin-left:auto;font-family:var(--font-d);font-weight:700;font-size:8pt}
+.p-mark .pm-r.ok{color:var(--green)} .p-mark .pm-r.nok{color:var(--red)}
+table.p-tbl{width:100%;border-collapse:collapse;font-size:7.5pt;border:.3mm solid var(--rule-2)}
+table.p-tbl th{background:var(--navy);color:var(--paper);font-family:var(--font-d);font-size:6pt;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1.2mm .8mm;text-align:center;border-right:.2mm solid rgba(255,255,255,.15)}
+table.p-tbl th.l{text-align:left}
+table.p-tbl td{border-bottom:.2mm solid var(--rule);border-right:.2mm solid var(--rule);padding:1mm .8mm;text-align:center;height:5.5mm}
+table.p-tbl td.l{text-align:left;font-weight:500}
+table.p-tbl td.ok{color:var(--green);font-weight:700}
+table.p-tbl td.nok{color:var(--red);font-weight:700}
+.p-foot{margin-top:4mm;display:flex;justify-content:space-between;border-top:.3mm solid var(--rule);padding-top:1.5mm;font-family:var(--font-d);font-size:6pt;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft)}
+.p-foot .l strong{color:var(--navy)}
+.p-note{font-size:6.5pt;color:var(--ink-soft);margin-top:2mm;font-style:italic}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="row">
+      <div>
+        <div class="eyebrow">Aseguramiento de calidad · QC-03 · Captura en campo</div>
+        <div class="brand-wm">CAMI<span class="dot">.</span></div>
+        <div class="sub">Dimensionamiento — vía rápida con flexómetro T1M</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="chip-conn" id="autosaveChip">Guardado local</div>
+    </div>
+  </header>
+
+  <details class="help" id="helpBox">
+    <summary>Cómo conectar el flexómetro Reekon T1M</summary>
+    <div class="tips">
+      El T1M se conecta como <b>teclado Bluetooth</b> y escribe la medida directo en el campo seleccionado.
+      <ul>
+        <li>En el T1M: menú → <b>Modo Teclado (Keyboard)</b>. <b>KBD LOCALE → Spanish</b> · <b>KBD ENDING → Tab</b>.</li>
+        <li>Ponlo en <b>pulgadas</b> (el proyecto vivo es imperial). Acepta <code>9'-2 1/4"</code>, <code>5 5/8"</code>, <code>1/4"</code> o decimal.</li>
+        <li>En el celular: Bluetooth → emparejar el <code>HID Keyboard</code>.</li>
+        <li>Toca la primera casilla de <b>Lectura</b>, apunta la medida y aprieta <b>guardar</b>. El número entra y brinca a la siguiente.</li>
+      </ul>
+      <div style="margin-top:8px">Con <b>Modo flexómetro</b> activo, Tab recorre <b>solo</b> las lecturas. El resultado es <b>AND estricto</b>: la pieza pasa solo si <b>todas</b> sus cotas caen dentro de tolerancia.</div>
+    </div>
+  </details>
+
+  <!-- 01 Encabezado -->
+  <section class="card">
+    <div class="card-h"><span class="num">01</span><h2>Datos del proyecto</h2>
+      <button class="btn btn-ghost btn-sm" id="btnToggleHdr">Ocultar</button>
+    </div>
+    <div class="card-b" id="hdrBody">
+      <div class="grid c3">
+        <div class="field"><label class="lbl">Proyecto</label><input id="h_proyecto" placeholder="p. ej. HARRISON-OWOW"></div>
+        <div class="field"><label class="lbl">Cliente</label><input id="h_cliente" placeholder="Cliente"></div>
+        <div class="field"><label class="lbl">Modo</label><input id="h_modo" placeholder="JV / CAMI"></div>
+        <div class="field"><label class="lbl">Inspector QC</label><input id="h_inspector" placeholder="Nombre"></div>
+        <div class="field"><label class="lbl">Supervisor CAMI</label><input id="h_supervisor" placeholder="Nombre"></div>
+        <div class="field"><label class="lbl">Fecha</label><input id="h_fecha" type="date"></div>
+      </div>
+      <div class="hint">El folio se genera solo al imprimir. Al cargar un proyecto en línea, cliente y modo se completan del catálogo.</div>
+    </div>
+  </section>
+
+  <!-- 02 Origen del catálogo -->
+  <section class="card">
+    <div class="card-h"><span class="num">02</span><h2>Catálogo de marks</h2>
+      <span class="srcchip" id="srcChip">semilla</span>
+    </div>
+    <div class="card-b">
+      <div class="mark-pick">
+        <div class="field">
+          <label class="lbl">Proyecto (en línea)</label>
+          <select id="projSelect"><option value="">— Conecta para listar —</option></select>
+        </div>
+        <button class="btn btn-navy" id="btnFetchProj">↻ Proyectos</button>
+        <button class="btn btn-primary" id="btnFetchItems">Cargar marks</button>
+      </div>
+      <div class="hint">Jala los marks reales del backend QC-03 (CAT_ITEMS, solo piezas, se excluyen subensambles). Se cachea para trabajar sin señal.</div>
+      <div class="warn" id="offWarn" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- 03 Selección de mark -->
+  <section class="card">
+    <div class="card-h"><span class="num">03</span><h2>Seleccionar mark a dimensionar</h2></div>
+    <div class="card-b">
+      <div class="mark-pick">
+        <div class="field">
+          <label class="lbl">Mark del proyecto</label>
+          <select id="markSelect"></select>
+        </div>
+        <button class="btn btn-primary" id="btnLoadMark">Abrir mark</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px;align-items:flex-end">
+        <button class="btn btn-ghost btn-sm" id="btnManualMark">+ Mark manual</button>
+        <button class="btn btn-ghost btn-sm" id="btnCatalogo">Gestionar catálogo</button>
+        <div class="spacer"></div>
+        <div class="field" style="flex:0 0 auto">
+          <label class="lbl">Modo flexómetro (Tab)</label>
+          <div class="seg" id="segFlex"><button data-v="1" class="on">Activado</button><button data-v="0">Libre</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="openMarkHost"></div>
+
+  <section class="card">
+    <div class="card-h"><span class="num">04</span><h2>Marks capturados <span id="markCount" style="color:var(--ink-soft);font-weight:400"></span></h2></div>
+    <div class="card-b" id="marksListHost">
+      <div class="empty">Aún no hay marks capturados. Abre uno arriba y captura sus medidas.</div>
+    </div>
+  </section>
+</div>
+
+<div class="actionbar">
+  <div class="inner">
+    <button class="btn btn-navy" id="btnPDF">📄 PDF</button>
+    <button class="btn btn-ghost" id="btnExport">Exportar QC-03</button>
+    <button class="btn btn-ghost" id="btnImport">Importar</button>
+    <button class="btn btn-danger" id="btnClear">Limpiar</button>
+  </div>
+</div>
+
+<!-- Modal catálogo -->
+<div class="modal-bg" id="catModal">
+  <div class="modal">
+    <div class="mh2"><h3>Catálogo de marks y medidas</h3><button class="x" data-close>×</button></div>
+    <div class="mb2">
+      <div class="sec-lbl">Agregar mark manual al catálogo</div>
+      <div class="grid c3">
+        <div class="field"><label class="lbl">Nombre / label</label><input id="c_nombre" placeholder="p. ej. 100C1"></div>
+        <div class="field"><label class="lbl">Mark canónico</label><input id="c_canon" placeholder="MK-…"></div>
+        <div class="field"><label class="lbl">Proyecto</label><input id="c_proyecto" placeholder="HARRISON-OWOW"></div>
+      </div>
+      <div class="sec-lbl" style="margin-top:12px">Medidas sugeridas (pulgadas — acepta fracciones)</div>
+      <div id="c_medidas"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" id="c_addMed">+ Medida</button>
+        <button class="btn btn-primary btn-sm" id="c_saveMark">Guardar mark</button>
+      </div>
+      <div class="divider"></div>
+      <div class="sec-lbl">Marks en catálogo <span id="catCount" style="color:var(--ink-soft)"></span></div>
+      <div id="catList"></div>
+      <div class="divider"></div>
+      <div class="sec-lbl">Importar / exportar catálogo (JSON)</div>
+      <div class="hint" style="margin-bottom:6px">Formato: <code>{"marcas":[{"nombre","mark_canonico","proyecto","medidas":[{"etiqueta","nominal","tolMinus","tolPlus","unidad"}]}]}</code></div>
+      <textarea class="json" id="catJson"></textarea>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-ghost btn-sm" id="catJsonLoad">Cargar desde JSON</button>
+        <button class="btn btn-ghost btn-sm" id="catJsonDump">Volcar catálogo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+<div id="printroot"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ===== Config ===== */
+var API='https://script.google.com/macros/s/AKfycbxvyPrrjqLboP27WszT2DQFwBtFUohagmV-xIMO0eRy_VR23oIcdX1CeOAcY1hmu8Iy/exec';
+var K_SES='cami_dim_sesion_v2', K_CAT='cami_dim_catalogo_v2', K_CACHE='cami_dim_cache_';
+/* Tolerancias default por tipo de cota (pulgadas) — placeholder AISC 303, editable */
+var TOL={largo:0.0625, secc:0.03125, esp:0.015625};
+
+/* ===== Storage con fallback ===== */
+var mem={};
+var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}};
+
+/* ===== Estado ===== */
+var UID=0; function uid(){UID++;return 'x'+Date.now().toString(36)+UID}
+function nowISO(){var d=new Date();var p=function(n){return(n<10?'0':'')+n};return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}
+var sesion={hdr:{proyecto:'',cliente:'',modo:'',inspector:'',supervisor:'',fecha:''}, marks:[], flex:1, source:'semilla', sourceTs:''};
+var catalogo={marcas:[]};
+var proyectosCat=[];
+
+/* ===== Parser imperial → pulgadas decimales ===== */
+function parseImperialToInches(raw){
+  if(raw===null||raw===undefined) return NaN;
+  if(typeof raw==='number') return isFinite(raw)?raw:NaN;
+  var s=String(raw).trim(); if(!s) return NaN;
+  s=s.replace(/[’‘´`]/g,"'").replace(/[”“″′]/g,'"');
+  s=s.replace(/pies|pie|feet|ft/gi,"'").replace(/pulgadas?|pulg\.?|inches|inch|in\b/gi,'"');
+  var feet=0;
+  var fm=s.match(/(-?\d+(?:\.\d+)?)\s*'/);
+  if(fm){ feet=parseFloat(fm[1]); s=s.replace(fm[0],' '); }
+  s=s.replace(/"/g,' ').replace(/-/g,' ').trim();
+  var inches=0;
+  if(s){
+    var frac=0, fr=s.match(/(\d+)\s*\/\s*(\d+)/);
+    if(fr){ frac=parseInt(fr[1],10)/parseInt(fr[2],10); s=s.replace(fr[0],' '); }
+    var whole=0, wm=s.match(/-?\d*\.\d+|-?\d+/);
+    if(wm){ whole=parseFloat(wm[0]); }
+    inches=whole+frac;
+  }
+  var v=feet*12+inches;
+  return isFinite(v)?v:NaN;
+}
+function parseNum(v){ if(v===null||v===undefined)return NaN; var s=String(v).trim().replace(',', '.').replace(/[^0-9.\-]/g,''); if(s===''||s==='-'||s==='.'||s==='-.')return NaN; var f=parseFloat(s); return isFinite(f)?f:NaN; }
+function toDecimal(m,val){ return (m.unidad==='mm')? parseNum(val) : parseImperialToInches(val); }
+function round3(x){ return (x===null||x===undefined||isNaN(x))?NaN:Math.round(x*1000)/1000; }
+function fmt(x){ if(x===null||x===undefined||isNaN(x))return''; return String(round3(x)); }
+
+/* ===== Parser de descripcion (nominales de sección, best-effort) ===== */
+function stripPrefix(t){ return t.replace(/^[A-Za-z]+/,''); }
+function cota(etq,nom,tipo){ return {etiqueta:etq, nominal:round3(nom), unidad:'in', tipo:tipo||'secc'}; }
+function parseDescripcion(desc){
+  if(!desc) return [];
+  var s=String(desc).toUpperCase().replace(/\s+/g,' ').trim();
+  var pref=(s.match(/^[A-Z]+/)||[''])[0];
+  var parts=s.split(/X/).map(function(x){return x.trim()});
+  var nums=parts.map(function(p,i){return i===0?stripPrefix(p):p});
+  var P=parseImperialToInches, out=[];
+  if(pref==='HSS'){
+    if(nums.length>=3) out.push(cota('Peralte (H)',P(nums[0])),cota('Ancho (B)',P(nums[1])),cota('Espesor pared',P(nums[2]),'esp'));
+    else if(nums.length===2) out.push(cota('Diámetro',P(nums[0])),cota('Espesor pared',P(nums[1]),'esp'));
+  } else if(pref==='L'){
+    if(nums.length>=3) out.push(cota('Ala larga',P(nums[0])),cota('Ala corta',P(nums[1])),cota('Espesor',P(nums[2]),'esp'));
+    else if(nums.length===2) out.push(cota('Ala',P(nums[0])),cota('Espesor',P(nums[1]),'esp'));
+  } else if(pref==='PL'||pref==='BAR'||pref==='FB'||pref==='FLAT'){
+    if(nums.length>=2) out.push(cota('Espesor',P(nums[0]),'esp'),cota('Ancho',P(nums[1])));
+    else if(nums.length===1) out.push(cota('Espesor',P(nums[0]),'esp'));
+  } else if(['W','M','S','HP','C','MC','WT','MT','ST'].indexOf(pref)>=0){
+    if(nums.length>=1) out.push(cota('Peralte (desig.)',P(nums[0])));
+  } else {
+    nums.forEach(function(n,i){ var v=P(n); if(!isNaN(v)) out.push(cota('Dim '+(i+1),v)); });
+  }
+  return out.filter(function(c){return !isNaN(c.nominal)});
+}
+
+/* ===== Construir mark de catálogo desde item CAT_ITEMS ===== */
+function catMarkFromItem(it, proyecto){
+  var meds=[];
+  var lg=parseImperialToInches(it.length!=null?it.length:it.largo);
+  if(!isNaN(lg)) meds.push({etiqueta:'Largo total', nominal:round3(lg), tolMinus:TOL.largo, tolPlus:TOL.largo, unidad:'in', tipo:'largo'});
+  parseDescripcion(it.descripcion||it.desc||'').forEach(function(c){ var t=TOL[c.tipo]||TOL.secc; meds.push({etiqueta:c.etiqueta, nominal:c.nominal, tolMinus:t, tolPlus:t, unidad:'in', tipo:c.tipo}); });
+  return { id:uid(), markCanon:it.mark||it.mark_canonico||'', nombre:(it.label||it.mark||'?'),
+    proyecto:proyecto, descripcion:it.descripcion||it.desc||'', numPlano:it.num_plano||it.numPlano||'', material:it.material||'', acabado:it.acabado||'', medidas:meds };
+}
+
+/* ===== Cálculo (AND estricto, sin promediar para pasa/no-pasa) ===== */
+function medStats(m){
+  var reads=(m.lecturas||[]).map(function(r){return toDecimal(m,r)}).filter(function(x){return !isNaN(x)});
+  var avg=reads.length? reads.reduce(function(a,b){return a+b},0)/reads.length : NaN;
+  var nom=toDecimal(m, m.nominal);
+  var tm=(m.tolMinus===''||m.tolMinus==null)?NaN:parseImperialToInches(m.tolMinus);
+  var tp=(m.tolPlus===''||m.tolPlus==null)?NaN:parseImperialToInches(m.tolPlus);
+  var lsl=NaN,usl=NaN,res='na';
+  if(!isNaN(nom)&&(!isNaN(tm)||!isNaN(tp))){
+    lsl=nom-(isNaN(tm)?0:Math.abs(tm));
+    usl=nom+(isNaN(tp)?0:Math.abs(tp));
+    if(reads.length){ res=reads.every(function(x){return x>=lsl-1e-9&&x<=usl+1e-9})?'ok':'nok'; }
+    else res='pend';
+  } else if(reads.length){ res='pend2'; }
+  return {reads:reads, avg:avg, nom:nom, lsl:lsl, usl:usl, res:res};
+}
+function markStats(mk){
+  var ok=0,nok=0,pend=0;
+  mk.medidas.forEach(function(m){var s=medStats(m); if(s.res==='ok')ok++; else if(s.res==='nok')nok++; else pend++;});
+  return {ok:ok,nok:nok,pend:pend,tot:mk.medidas.length, estado:(nok>0?'nok':(ok>0&&pend===0?'ok':'pend'))};
+}
+
+/* ===== Persistencia ===== */
+function save(){ LS.set(K_SES,JSON.stringify(sesion)); LS.set(K_CAT,JSON.stringify(catalogo)); }
+function load(){
+  try{var s=LS.get(K_SES); if(s){var o=JSON.parse(s); if(o&&o.marks)sesion=Object.assign(sesion,o);}}catch(e){}
+  try{var c=LS.get(K_CAT); if(c){var oc=JSON.parse(c); if(oc&&oc.marcas)catalogo=oc;}}catch(e){}
+  if(!catalogo.marcas||!catalogo.marcas.length) catalogo=seedCatalogo();
+  if(!sesion.hdr.fecha) sesion.hdr.fecha=nowISO();
+}
+function seedCatalogo(){
+  return {marcas:[
+    catMarkFromItem({mark:'MK-EJ0001',label:'100C1 (ejemplo)',descripcion:'HSS6X6X1/4',length:"9'-2 1/4\"",material:'A500-GR.B',num_plano:'100'},'HARRISON-OWOW'),
+    catMarkFromItem({mark:'MK-EJ0002',label:'a1 (ejemplo)',descripcion:'L6X3-1/2X1/2',length:"6\"",material:'A572-GR.50',num_plano:'100'},'HARRISON-OWOW'),
+    catMarkFromItem({mark:'MK-EJ0003',label:'p3 (ejemplo)',descripcion:'PL1/4\"X5 5/8\"',length:"5 5/8\"",material:'A572-GR.50',num_plano:'100; 104'},'HARRISON-OWOW')
+  ]};
+}
+
+/* ===== DOM helpers ===== */
+function $(id){return document.getElementById(id)}
+function el(t,c,h){var e=document.createElement(t);if(c)e.className=c;if(h!==undefined)e.innerHTML=h;return e}
+function toast(m){var t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('show')},2100)}
+function escapeHtml(s){if(s==null)return'';return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function attr(s){if(s==null)return'';return String(s).replace(/"/g,'&quot;')}
+
+/* ===== Encabezado ===== */
+function bindHdr(){
+  [['h_proyecto','proyecto'],['h_cliente','cliente'],['h_modo','modo'],['h_inspector','inspector'],['h_supervisor','supervisor'],['h_fecha','fecha']].forEach(function(p){
+    var e=$(p[0]); e.value=sesion.hdr[p[1]]||''; e.addEventListener('input',function(){sesion.hdr[p[1]]=e.value;save()});
+  });
+}
+
+/* ===== Fetch catálogo en vivo ===== */
+function jget(url){ return fetch(url,{method:'GET'}).then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.text(); }).then(function(t){ try{return JSON.parse(t)}catch(e){throw new Error('Respuesta no-JSON')} }); }
+function pickArray(o,keys){ if(Array.isArray(o))return o; for(var i=0;i<keys.length;i++){ if(o&&Array.isArray(o[keys[i]]))return o[keys[i]]; } if(o&&o.data){return pickArray(o.data,keys)} return []; }
+function fetchProyectos(){
+  toast('Consultando proyectos…');
+  jget(API+'?accion=listaProyectos').then(function(o){
+    proyectosCat=pickArray(o,['proyectos','items','rows']);
+    var sel=$('projSelect'); sel.innerHTML='<option value="">— Elige proyecto —</option>';
+    proyectosCat.forEach(function(p){ var name=p.proyecto||p.nombre||p; var o2=el('option'); o2.value=name; o2.textContent=name+(p.modo?' ['+p.modo+']':''); sel.appendChild(o2); });
+    toast(proyectosCat.length+' proyectos'); $('offWarn').style.display='none';
+  }).catch(function(e){ showOff('No se pudo listar proyectos ('+e.message+'). Puedes escribir el proyecto en el encabezado y cargar marks igual, o trabajar con lo cacheado.'); });
+}
+function fetchItems(){
+  var proy=$('projSelect').value || sesion.hdr.proyecto;
+  if(!proy){ toast('Elige o escribe un proyecto'); return; }
+  toast('Cargando marks de '+proy+'…');
+  jget(API+'?accion=listaItemsPorProyecto&proyecto='+encodeURIComponent(proy)).then(function(o){
+    var items=pickArray(o,['items','rows','data']);
+    applyItems(items, proy, 'en línea');
+    // cache
+    try{ LS.set(K_CACHE+proy, JSON.stringify({ts:new Date().toISOString(),items:items})); }catch(e){}
+  }).catch(function(e){
+    // intenta caché
+    var cached=LS.get(K_CACHE+proy);
+    if(cached){ try{ var c=JSON.parse(cached); applyItems(c.items, proy, 'caché'); sesion.sourceTs=c.ts; toast('Sin señal — usando caché'); return; }catch(_){}}
+    showOff('No se pudieron cargar los marks ('+e.message+') y no hay caché de '+proy+'.');
+  });
+}
+function applyItems(items, proy, src){
+  var piezas=items.filter(function(it){ var se=(it.es_subensamble||it.es_SE||'').toString().toUpperCase(); return se!=='SI'&&se!=='TRUE'&&se!=='1'; });
+  // dedupe por markCanon
+  var seen={}, nuevos=[];
+  piezas.forEach(function(it){ var mc=it.mark||it.mark_canonico||('?'+uid()); if(seen[mc])return; seen[mc]=1; nuevos.push(catMarkFromItem(it, proy)); });
+  // reemplaza en catálogo TODOS los del mismo proyecto (incluye semillas de ejemplo)
+  catalogo.marcas=catalogo.marcas.filter(function(m){return (m.proyecto||'')!==proy});
+  catalogo.marcas=catalogo.marcas.concat(nuevos);
+  sesion.source=src; sesion.sourceTs=new Date().toISOString();
+  if(!sesion.hdr.proyecto) sesion.hdr.proyecto=proy;
+  var pr=proyectosCat.filter(function(p){return (p.proyecto||p.nombre)===proy})[0];
+  if(pr){ if(!sesion.hdr.cliente&&pr.cliente)sesion.hdr.cliente=pr.cliente; if(!sesion.hdr.modo&&pr.modo)sesion.hdr.modo=pr.modo; if(!sesion.hdr.supervisor&&pr.supervisor)sesion.hdr.supervisor=pr.supervisor; bindHdr(); }
+  save(); renderMarkSelect(); updateSrcChip(); $('offWarn').style.display='none';
+  toast(nuevos.length+' marks cargados ('+src+')');
+}
+function showOff(msg){ var w=$('offWarn'); w.textContent=msg; w.style.display='block'; }
+function updateSrcChip(){
+  var c=$('srcChip'); var s=sesion.source||'semilla';
+  c.className='srcchip'+(s==='en línea'?' live':(s==='caché'?' cache':''));
+  c.textContent=s+(sesion.sourceTs?(' · '+sesion.sourceTs.substring(0,10)):'');
+}
+
+/* ===== Selector de mark ===== */
+function renderMarkSelect(){
+  var sel=$('markSelect'); sel.innerHTML='';
+  sel.appendChild(new Option('— Elige un mark —',''));
+  var byP={}; catalogo.marcas.forEach(function(m){var p=m.proyecto||'Sin proyecto';(byP[p]=byP[p]||[]).push(m)});
+  Object.keys(byP).forEach(function(p){
+    var og=el('optgroup'); og.label=p;
+    byP[p].forEach(function(m){ var o=el('option'); o.value=m.id; o.textContent=m.nombre+(m.descripcion?' · '+m.descripcion:'')+' ('+m.medidas.length+')'; og.appendChild(o); });
+    sel.appendChild(og);
+  });
+}
+function loadSelectedMark(){
+  var id=$('markSelect').value; if(!id){toast('Elige un mark o usa “Mark manual”');return;}
+  var cat=catalogo.marcas.filter(function(m){return m.id===id})[0]; if(!cat)return;
+  var mk={ id:uid(), markCanon:cat.markCanon||'', nombre:(cat.nombre||'').replace(/\s*\(ejemplo\)\s*/,''), proyecto:cat.proyecto||sesion.hdr.proyecto||'',
+    descripcion:cat.descripcion||'', numPlano:cat.numPlano||'', material:cat.material||'', acabado:cat.acabado||'', estado:'abierto',
+    medidas:cat.medidas.map(function(m){return {etiqueta:m.etiqueta,nominal:(m.nominal!=null?m.nominal:''),tolMinus:(m.tolMinus!=null?m.tolMinus:TOL.secc),tolPlus:(m.tolPlus!=null?m.tolPlus:TOL.secc),unidad:m.unidad||'in',tipo:m.tipo||'secc',lecturas:['']}}) };
+  sesion.marks.push(mk); openMark(mk); toast('Mark cargado: '+mk.nombre);
+}
+function manualMark(){
+  var nombre=prompt('Nombre / label del mark:',''); if(nombre===null)return;
+  var mk={id:uid(),markCanon:'',nombre:nombre||'Mark manual',proyecto:sesion.hdr.proyecto||'',descripcion:'',numPlano:'',material:'',acabado:'',estado:'abierto',
+    medidas:[{etiqueta:'',nominal:'',tolMinus:TOL.largo,tolPlus:TOL.largo,unidad:'in',tipo:'largo',lecturas:['']}]};
+  sesion.marks.push(mk); openMark(mk);
+}
+
+/* ===== Mark abierto ===== */
+var openId=null;
+function openMark(mk){ mk.estado='abierto'; openId=mk.id; sesion.marks.forEach(function(m){if(m.id!==mk.id&&m.estado==='abierto')m.estado='cerrado'}); save(); renderAll(); setTimeout(focusFirstRead,60); }
+function focusFirstRead(){ var h=$('openMarkHost'); if(!h)return; var i=h.querySelector('input.read'); if(i){i.focus();if(i.select)i.select();} }
+function renderOpenMark(){
+  var host=$('openMarkHost'); host.innerHTML='';
+  var mk=sesion.marks.filter(function(m){return m.id===openId&&m.estado==='abierto'})[0]; if(!mk)return;
+  var st=markStats(mk);
+  var wrap=el('div','mark-open');
+  var badge=st.estado==='ok'?'<span class="badge ok">OK</span>':st.estado==='nok'?'<span class="badge nok">Revisar</span>':'<span class="badge pend">En captura</span>';
+  var meta=(mk.descripcion?escapeHtml(mk.descripcion)+' · ':'')+(mk.material?escapeHtml(mk.material)+' · ':'')+(mk.numPlano?'Plano '+escapeHtml(mk.numPlano)+' · ':'')+mk.medidas.length+' cotas'+(mk.markCanon?' · <span class="canon">'+escapeHtml(mk.markCanon)+'</span>':'');
+  wrap.appendChild(el('div','mh','<div><div class="mtitle">'+escapeHtml(mk.nombre)+'</div><div class="mmeta">'+meta+'</div></div><div class="spacer"></div>'+badge));
+  var ncol=1; mk.medidas.forEach(function(m){ncol=Math.max(ncol,(m.lecturas||[]).length||1)});
+  var tw=el('div','tbl-wrap'), tbl=el('table','meas');
+  var thead='<thead><tr><th class="lbl-col">Cota</th><th>Nominal</th><th>Tol−</th><th>Tol+</th>';
+  for(var c=0;c<ncol;c++)thead+='<th>M'+(c+1)+'</th>';
+  thead+='<th>Dec.</th><th>Result.</th><th></th></tr></thead>';
+  tbl.innerHTML=thead;
+  var tb=el('tbody'), tabi=100;
+  mk.medidas.forEach(function(m,ri){
+    if(!m.lecturas)m.lecturas=[''];
+    var s=medStats(m), tr=el('tr');
+    var tdL=el('td','lbl-col'), inL=el('input','lbl-in'); inL.value=m.etiqueta||''; inL.placeholder='Cota'; inL.setAttribute('tabindex','-1');
+    inL.addEventListener('input',function(){m.etiqueta=inL.value;save()}); tdL.appendChild(inL); tr.appendChild(tdL);
+    var tdN=el('td'), inN=el('input','nom'); inN.value=(m.nominal!=null?m.nominal:''); inN.setAttribute('tabindex','-1');
+    inN.addEventListener('input',function(){m.nominal=inN.value;recalcRow(tr,m)}); tdN.appendChild(inN); tr.appendChild(tdN);
+    var tdM=el('td'), inM=el('input','tin'); inM.value=(m.tolMinus!=null?m.tolMinus:''); inM.setAttribute('tabindex','-1');
+    inM.addEventListener('input',function(){m.tolMinus=inM.value;recalcRow(tr,m)}); tdM.appendChild(inM); tr.appendChild(tdM);
+    var tdP=el('td'), inP=el('input','tin'); inP.value=(m.tolPlus!=null?m.tolPlus:''); inP.setAttribute('tabindex','-1');
+    inP.addEventListener('input',function(){m.tolPlus=inP.value;recalcRow(tr,m)}); tdP.appendChild(inP); tr.appendChild(tdP);
+    for(var c=0;c<ncol;c++){(function(ci){
+      var td=el('td'), inR=el('input','read'); inR.value=m.lecturas[ci]!=null?m.lecturas[ci]:''; inR.setAttribute('inputmode','text');
+      inR.setAttribute('tabindex', sesion.flex?(tabi++):0);
+      inR.addEventListener('input',function(){m.lecturas[ci]=inR.value;recalcRow(tr,m)});
+      inR.addEventListener('keydown',function(ev){if(ev.key==='Enter'){ev.preventDefault();advance(inR)}});
+      inR.addEventListener('focus',function(){if(inR.select)inR.select()});
+      td.appendChild(inR); tr.appendChild(td);
+    })(c);}
+    var tdD2=el('td'); tdD2.innerHTML='<span class="dec">'+fmt(s.avg)+'</span>'; tr.appendChild(tdD2);
+    tr.appendChild(el('td'));
+    var tdX=el('td'), bd=el('button','row-del','✕'); bd.setAttribute('tabindex','-1');
+    bd.addEventListener('click',function(){mk.medidas.splice(ri,1);save();renderAll();reopenAfter(mk.id)});
+    tdX.appendChild(bd); tr.appendChild(tdX);
+    tb.appendChild(tr); paintRow(tr,m,s);
+  });
+  tbl.appendChild(tb); tw.appendChild(tbl); wrap.appendChild(tw);
+  var tools=el('div','mark-tools');
+  var bAdd=el('button','btn btn-ghost btn-sm','+ Cota'); bAdd.addEventListener('click',function(){mk.medidas.push({etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc,unidad:'in',tipo:'secc',lecturas:['']});save();renderAll();reopenAfter(mk.id)});
+  var bCol=el('button','btn btn-ghost btn-sm','+ Lectura (M'+(ncol+1)+')'); bCol.addEventListener('click',function(){mk.medidas.forEach(function(m){if(!m.lecturas)m.lecturas=[''];m.lecturas.push('')});save();renderAll();reopenAfter(mk.id)});
+  tools.appendChild(bAdd); tools.appendChild(bCol); tools.appendChild(el('div','spacer'));
+  var bClose=el('button','btn btn-primary btn-sm','✓ Cerrar mark y seguir');
+  bClose.addEventListener('click',function(){mk.estado='cerrado';openId=null;save();renderAll();toast('Mark cerrado — abre el siguiente');$('markSelect').focus();window.scrollTo({top:0,behavior:'smooth'})});
+  tools.appendChild(bClose); wrap.appendChild(tools); host.appendChild(wrap);
+}
+function reopenAfter(id){openId=id;renderOpenMark()}
+function paintRow(tr,m,s){
+  var reads=tr.querySelectorAll('input.read');
+  Array.prototype.forEach.call(reads,function(ri){ ri.classList.remove('rok','rnok'); var v=toDecimal(m,ri.value); if(ri.value.trim()!==''&&!isNaN(s.lsl)&&!isNaN(v)){ ri.classList.add(v>=s.lsl-1e-9&&v<=s.usl+1e-9?'rok':'rnok'); } });
+  var tds=tr.querySelectorAll('td'), tdR=tds[tds.length-2];
+  if(tdR){ if(s.res==='ok'){tdR.className='res ok';tdR.textContent='OK';} else if(s.res==='nok'){tdR.className='res nok';tdR.textContent='NOK';} else if(s.res==='pend'){tdR.className='res na';tdR.textContent='…';} else {tdR.className='res na';tdR.textContent='—';} }
+}
+function recalcRow(tr,m){
+  var s=medStats(m);
+  var d=tr.querySelector('.dec'); if(d)d.textContent=fmt(s.avg);
+  paintRow(tr,m,s); save();
+  var mk=sesion.marks.filter(function(x){return x.id===openId})[0];
+  if(mk){var stt=markStats(mk),b=$('openMarkHost').querySelector('.mh .badge');
+    if(b){b.className='badge '+(stt.estado==='ok'?'ok':stt.estado==='nok'?'nok':'pend');b.textContent=(stt.estado==='ok'?'OK':stt.estado==='nok'?'Revisar':'En captura');}}
+}
+function advance(inR){
+  var all=Array.prototype.slice.call($('openMarkHost').querySelectorAll('input.read'));
+  var i=all.indexOf(inR);
+  if(i>-1&&i<all.length-1){var n=all[i+1];n.focus();if(n.select)n.select();}
+  else {inR.blur();toast('Última lectura del mark')}
+}
+
+/* ===== Lista de cerrados ===== */
+function renderMarksList(){
+  var host=$('marksListHost'); host.innerHTML='';
+  var closed=sesion.marks.filter(function(m){return m.estado!=='abierto'});
+  $('markCount').textContent=sesion.marks.length?'· '+sesion.marks.length:'';
+  if(!closed.length){host.appendChild(el('div','empty','Aún no hay marks cerrados. Abre uno arriba y captura sus cotas.'));return;}
+  closed.forEach(function(mk){
+    var st=markStats(mk), item=el('div','mlist-item');
+    var badge=st.estado==='ok'?'<span class="badge ok">OK</span>':st.estado==='nok'?'<span class="badge nok">Revisar</span>':'<span class="badge pend">Incompleto</span>';
+    var head=el('div','mlist-head','<div><div class="mn">'+escapeHtml(mk.nombre)+'</div><div class="mc">'+(mk.descripcion?escapeHtml(mk.descripcion)+' · ':'')+st.tot+' cotas · '+st.ok+' OK · '+st.nok+' NOK'+(st.pend?' · '+st.pend+' pend.':'')+'</div></div><div class="spacer"></div>'+badge);
+    var body=el('div','mlist-body');
+    var acts=el('div','btn-row'); acts.style.margin='4px 0 8px';
+    var bEdit=el('button','btn btn-ghost btn-sm','Editar / reabrir'); bEdit.addEventListener('click',function(e){e.stopPropagation();openMark(mk);window.scrollTo({top:120,behavior:'smooth'})});
+    var bDup=el('button','btn btn-ghost btn-sm','Duplicar'); bDup.addEventListener('click',function(e){e.stopPropagation();var cp=JSON.parse(JSON.stringify(mk));cp.id=uid();cp.nombre=mk.nombre+' (copia)';cp.estado='cerrado';sesion.marks.push(cp);save();renderAll()});
+    var bDel=el('button','btn btn-danger btn-sm','Eliminar'); bDel.addEventListener('click',function(e){e.stopPropagation();if(confirm('¿Eliminar '+mk.nombre+'?')){sesion.marks=sesion.marks.filter(function(x){return x.id!==mk.id});save();renderAll()}});
+    acts.appendChild(bEdit);acts.appendChild(bDup);acts.appendChild(bDel);body.appendChild(acts);
+    var mt=el('table','mini-tbl'), ncol=1; mk.medidas.forEach(function(m){ncol=Math.max(ncol,(m.lecturas||[]).length||1)});
+    var h='<tr><th>Cota</th><th>Nominal</th>'; for(var c=0;c<ncol;c++)h+='<th>M'+(c+1)+'</th>'; h+='<th>Dec.</th><th>Result.</th></tr>'; mt.innerHTML=h;
+    mk.medidas.forEach(function(m){var s=medStats(m),r=el('tr');
+      var row='<td>'+escapeHtml(m.etiqueta||'—')+'</td><td>'+fmt(s.nom)+'</td>';
+      for(var c=0;c<ncol;c++){var v=(m.lecturas&&m.lecturas[c]!=null)?m.lecturas[c]:'';row+='<td>'+escapeHtml(String(v))+'</td>'}
+      row+='<td>'+fmt(s.avg)+'</td>'; var cls=s.res==='ok'?'ok':s.res==='nok'?'nok':'',txt=s.res==='ok'?'OK':s.res==='nok'?'NOK':'—';
+      row+='<td class="'+cls+'">'+txt+'</td>'; r.innerHTML=row; mt.appendChild(r);});
+    body.appendChild(mt);
+    head.addEventListener('click',function(){body.classList.toggle('show')});
+    item.appendChild(head);item.appendChild(body);host.appendChild(item);
+  });
+}
+
+/* ===== Catálogo modal ===== */
+var catDraft=[];
+function openCat(){ catDraft=[{etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc}]; $('c_nombre').value='';$('c_canon').value='';$('c_proyecto').value=sesion.hdr.proyecto||''; renderCatDraft(); renderCatList(); $('catJson').value=''; $('catModal').classList.add('show'); }
+function closeCat(){$('catModal').classList.remove('show')}
+function renderCatDraft(){
+  var host=$('c_medidas'); host.innerHTML='';
+  catDraft.forEach(function(m,i){
+    var row=el('div'); row.style.cssText='display:grid;grid-template-columns:2fr 1fr .8fr .8fr auto;gap:6px;margin-bottom:6px;align-items:center';
+    row.innerHTML='<input placeholder="Cota" value="'+attr(m.etiqueta)+'"><input placeholder="Nominal" value="'+attr(m.nominal)+'"><input placeholder="Tol−" value="'+attr(m.tolMinus)+'"><input placeholder="Tol+" value="'+attr(m.tolPlus)+'"><button class="row-del">✕</button>';
+    var ins=row.querySelectorAll('input');
+    ins[0].addEventListener('input',function(){m.etiqueta=ins[0].value});ins[1].addEventListener('input',function(){m.nominal=ins[1].value});ins[2].addEventListener('input',function(){m.tolMinus=ins[2].value});ins[3].addEventListener('input',function(){m.tolPlus=ins[3].value});
+    row.querySelector('.row-del').addEventListener('click',function(){catDraft.splice(i,1);if(!catDraft.length)catDraft.push({etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc});renderCatDraft()});
+    host.appendChild(row);
+  });
+}
+function saveCatMark(){
+  var nombre=$('c_nombre').value.trim(); if(!nombre){toast('Ponle nombre');return;}
+  var meds=catDraft.filter(function(m){return m.etiqueta&&m.etiqueta.trim()}).map(function(m){return {etiqueta:m.etiqueta.trim(),nominal:m.nominal!==''?parseImperialToInches(m.nominal):'',tolMinus:m.tolMinus!==''?parseImperialToInches(m.tolMinus):TOL.secc,tolPlus:m.tolPlus!==''?parseImperialToInches(m.tolPlus):TOL.secc,unidad:'in',tipo:'secc'}});
+  if(!meds.length){toast('Agrega una cota con nombre');return;}
+  catalogo.marcas.push({id:uid(),markCanon:$('c_canon').value.trim(),nombre:nombre,proyecto:$('c_proyecto').value.trim(),descripcion:'',numPlano:'',material:'',acabado:'',medidas:meds});
+  save();renderMarkSelect();renderCatList();toast('Mark agregado');
+  catDraft=[{etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc}];$('c_nombre').value='';$('c_canon').value='';renderCatDraft();
+}
+function renderCatList(){
+  var host=$('catList'); host.innerHTML=''; $('catCount').textContent='· '+catalogo.marcas.length;
+  if(!catalogo.marcas.length){host.appendChild(el('div','hint','Catálogo vacío.'));return;}
+  catalogo.marcas.forEach(function(m){
+    var c=el('div','cat-mark');
+    c.innerHTML='<div class="cmh"><span class="nm">'+escapeHtml(m.nombre)+'</span>'+(m.markCanon?' <span class="hint">'+escapeHtml(m.markCanon)+'</span>':'')+'<span class="spacer"></span><button class="btn btn-danger btn-sm">Eliminar</button></div><div class="cmm">'+(m.proyecto?escapeHtml(m.proyecto)+' · ':'')+(m.descripcion?escapeHtml(m.descripcion)+' · ':'')+m.medidas.map(function(x){return escapeHtml(x.etiqueta)+(x.nominal!==''&&x.nominal!=null?' '+fmt(parseImperialToInches(x.nominal)):'')}).join(' · ')+'</div>';
+    c.querySelector('button').addEventListener('click',function(){if(confirm('¿Eliminar '+m.nombre+'?')){catalogo.marcas=catalogo.marcas.filter(function(x){return x.id!==m.id});save();renderMarkSelect();renderCatList()}});
+    host.appendChild(c);
+  });
+}
+
+/* ===== Export / import / PDF ===== */
+function buildRenglones(){
+  return sesion.marks.map(function(mk){
+    var st=markStats(mk);
+    return { mark_canonico:mk.markCanon||'', label:mk.nombre, proyecto:mk.proyecto||sesion.hdr.proyecto, descripcion:mk.descripcion||'', num_plano:mk.numPlano||'', material:mk.material||'', acabado:mk.acabado||'',
+      resultado:(st.estado==='ok'?'OK':st.estado==='nok'?'NOK':'INCOMPLETA'), unidad_default:'in',
+      cotas:mk.medidas.map(function(m){var s=medStats(m);
+        return {nombre:{es:m.etiqueta,en:''},unidad:m.unidad||'in',nominal:round3(s.nom),tol_menos:parseImperialToInches(m.tolMinus),tol_mas:parseImperialToInches(m.tolPlus),lsl:round3(s.lsl),usl:round3(s.usl),
+          muestras:(m.lecturas||[]).filter(function(x){return String(x).trim()!==''}).map(function(x){return {valor_medido:x,decimal:round3(toDecimal(m,x))}}),
+          medida_decimal:round3(s.avg), resultado:(s.res==='ok'?'OK':s.res==='nok'?'NOK':'INCOMPLETA')};})};
+  });
+}
+function exportData(){
+  var data={tipo:'cami-dim-campo',version:2,qc03_compatible:true,exportado:new Date().toISOString(),encabezado:sesion.hdr,renglones:buildRenglones(),sesion:sesion};
+  downloadJson(data,'captura-dim-'+(sesion.hdr.proyecto||'campo').replace(/\s+/g,'_')+'-'+nowISO()+'.json');
+}
+function downloadJson(o,name){var b=new Blob([JSON.stringify(o,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)}
+function importData(){$('fileInput').click()}
+$('fileInput').addEventListener('change',function(e){
+  var f=e.target.files[0]; if(!f)return; var r=new FileReader();
+  r.onload=function(){try{var o=JSON.parse(r.result);
+    if(o.sesion&&o.sesion.marks){sesion=Object.assign(sesion,o.sesion);toast('Sesión importada');}
+    else if(o.marcas){o.marcas.forEach(function(m){if(!m.id)m.id=uid();if(!m.medidas)m.medidas=[]});catalogo=o;toast('Catálogo importado');}
+    else{toast('Formato no reconocido');return;}
+    save();renderAll();renderMarkSelect();updateSrcChip();
+  }catch(err){alert('No se pudo leer: '+err.message)}};
+  r.readAsText(f); e.target.value='';
+});
+function genFolio(){var d=new Date(),p=function(n){return(n<10?'0':'')+n};var cli=(sesion.hdr.cliente||'CAMI').substring(0,4).toUpperCase().replace(/[^A-Z0-9]/g,'');return 'DIM-'+cli+'-'+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())}
+function infoF(k,v){return '<div class="f"><span class="k">'+k+'</span><span class="v">'+escapeHtml(v||'')+'</span></div>'}
+function buildPrint(){
+  var root=$('printroot'); root.innerHTML='';
+  if(!sesion.marks.length){toast('No hay marks para el PDF');return false;}
+  var folio=genFolio(), h=sesion.hdr, doc=el('div','p-doc');
+  doc.innerHTML='<div class="p-head"><div class="wm">CAMI<span class="dot">.</span></div><div class="ttl"><div class="eb">Aseguramiento de calidad · QC-03 · Captura en campo</div><h1>Dimensionamiento — Lecturas de campo</h1></div><div class="ref">Folio<br><strong style="color:#FAF6EE">'+folio+'</strong><br>Alimenta ITP-PRIMA-CAMI-DIM-001</div></div>'
+   +'<div class="p-bar"><div>Documento de trabajo · captura previa (no controlado) · unidades en pulgadas</div><div><strong>'+sesion.marks.length+'</strong> marks</div></div>'
+   +'<div class="p-info">'+infoF('Proyecto',h.proyecto)+infoF('Cliente',h.cliente)+infoF('Modo',h.modo)+infoF('Fecha',h.fecha)+infoF('Inspector QC',h.inspector)+infoF('Supervisor CAMI',h.supervisor)+infoF('Fuente',sesion.source)+infoF('Generado',nowISO())+'</div>';
+  sesion.marks.forEach(function(mk){
+    var st=markStats(mk), ncol=1; mk.medidas.forEach(function(m){ncol=Math.max(ncol,(m.lecturas||[]).length||1)});
+    var rescls=st.estado==='ok'?'ok':st.estado==='nok'?'nok':'', restxt=st.estado==='ok'?'ACEPTADO':st.estado==='nok'?'REVISAR (NOK)':'INCOMPLETO';
+    var block=el('div','p-mark');
+    var head='<div class="pm-h"><span class="pm-n">'+escapeHtml(mk.nombre)+'</span><span class="pm-c">'+(mk.markCanon?escapeHtml(mk.markCanon)+' · ':'')+(mk.descripcion?escapeHtml(mk.descripcion)+' · ':'')+(mk.numPlano?'Plano '+escapeHtml(mk.numPlano)+' · ':'')+st.tot+' cotas</span><span class="pm-r '+rescls+'">'+restxt+'</span></div>';
+    var th='<tr><th class="l">Cota</th><th>Nominal</th><th>Tol−</th><th>Tol+</th><th>LSL</th><th>USL</th>';
+    for(var c=0;c<ncol;c++)th+='<th>M'+(c+1)+'</th>'; th+='<th>Dec.</th><th>Result.</th></tr>';
+    var rows='';
+    mk.medidas.forEach(function(m){var s=medStats(m);
+      var r='<td class="l">'+escapeHtml(m.etiqueta||'—')+'</td><td>'+fmt(s.nom)+'</td><td>'+fmt(parseImperialToInches(m.tolMinus))+'</td><td>'+fmt(parseImperialToInches(m.tolPlus))+'</td><td>'+fmt(s.lsl)+'</td><td>'+fmt(s.usl)+'</td>';
+      for(var c=0;c<ncol;c++){var v=(m.lecturas&&m.lecturas[c]!=null)?m.lecturas[c]:'';r+='<td>'+escapeHtml(String(v))+'</td>'}
+      r+='<td>'+fmt(s.avg)+'</td>'; var cls=s.res==='ok'?'ok':s.res==='nok'?'nok':'',txt=s.res==='ok'?'OK':s.res==='nok'?'NOK':'—';
+      r+='<td class="'+cls+'">'+txt+'</td>'; rows+='<tr>'+r+'</tr>';});
+    block.innerHTML=head+'<table class="p-tbl"><thead>'+th+'</thead><tbody>'+rows+'</tbody></table>';
+    doc.appendChild(block);
+  });
+  doc.appendChild(el('div','p-note','Captura tomada en campo con flexómetro digital (Reekon T1M), en pulgadas. Registro previo para transcribir/importar al reporte dimensional controlado ITP-PRIMA-CAMI-DIM-001 (QC-03). Nominales de sección y tolerancias son sugeridos (derivados de descripción / AISC 303): confirmar contra plano.'));
+  doc.appendChild(el('div','p-foot','<div class="l"><strong>CAMI</strong> · Aceros Manufacturados · Dimensionamiento en campo</div><div>Folio '+folio+'</div>'));
+  root.appendChild(doc); return true;
+}
+function doPDF(){if(buildPrint())setTimeout(function(){window.print()},120)}
+
+/* ===== Render maestro ===== */
+function renderAll(){renderOpenMark();renderMarksList();save()}
+
+/* ===== Eventos ===== */
+function bindEvents(){
+  $('btnFetchProj').addEventListener('click',fetchProyectos);
+  $('btnFetchItems').addEventListener('click',fetchItems);
+  $('projSelect').addEventListener('change',function(){if(this.value&&!sesion.hdr.proyecto){sesion.hdr.proyecto=this.value;$('h_proyecto').value=this.value;save()}});
+  $('btnLoadMark').addEventListener('click',loadSelectedMark);
+  $('markSelect').addEventListener('keydown',function(e){if(e.key==='Enter')loadSelectedMark()});
+  $('btnManualMark').addEventListener('click',manualMark);
+  $('btnCatalogo').addEventListener('click',openCat);
+  $('btnPDF').addEventListener('click',doPDF);
+  $('btnExport').addEventListener('click',exportData);
+  $('btnImport').addEventListener('click',importData);
+  $('btnClear').addEventListener('click',function(){if(confirm('¿Limpiar la sesión de captura? (El catálogo se conserva)')){sesion.marks=[];openId=null;save();renderAll();toast('Sesión limpia')}});
+  $('btnToggleHdr').addEventListener('click',function(){var b=$('hdrBody'),show=b.style.display!=='none';b.style.display=show?'none':'block';this.textContent=show?'Mostrar':'Ocultar'});
+  Array.prototype.forEach.call(document.querySelectorAll('#segFlex button'),function(btn){btn.addEventListener('click',function(){sesion.flex=parseInt(btn.dataset.v,10);Array.prototype.forEach.call(document.querySelectorAll('#segFlex button'),function(b){b.classList.remove('on')});btn.classList.add('on');save();renderOpenMark()})});
+  Array.prototype.forEach.call(document.querySelectorAll('#catModal [data-close]'),function(x){x.addEventListener('click',closeCat)});
+  $('catModal').addEventListener('click',function(e){if(e.target===this)closeCat()});
+  $('c_addMed').addEventListener('click',function(){catDraft.push({etiqueta:'',nominal:'',tolMinus:TOL.secc,tolPlus:TOL.secc});renderCatDraft()});
+  $('c_saveMark').addEventListener('click',saveCatMark);
+  $('catJsonDump').addEventListener('click',function(){$('catJson').value=JSON.stringify(catalogo,null,2)});
+  $('catJsonLoad').addEventListener('click',function(){try{var o=JSON.parse($('catJson').value);var cat=o.marcas?o:(o.catalogo||null);if(!cat||!cat.marcas)throw new Error('Falta "marcas"');cat.marcas.forEach(function(m){if(!m.id)m.id=uid();if(!m.medidas)m.medidas=[];if(m.mark_canonico&&!m.markCanon)m.markCanon=m.mark_canonico;m.medidas.forEach(function(md){if(md.unidad==null)md.unidad='in'})});catalogo=cat;save();renderMarkSelect();renderCatList();toast('Catálogo cargado ('+cat.marcas.length+')')}catch(err){alert('JSON inválido: '+err.message)}});
+}
+function initFlexSeg(){Array.prototype.forEach.call(document.querySelectorAll('#segFlex button'),function(b){b.classList.toggle('on',parseInt(b.dataset.v,10)===sesion.flex)})}
+function init(){
+  load();bindHdr();renderMarkSelect();renderAll();initFlexSeg();updateSrcChip();bindEvents();
+  var op=sesion.marks.filter(function(m){return m.estado==='abierto'})[0]; if(op){openId=op.id;renderOpenMark()}
+}
+document.addEventListener('DOMContentLoaded',init);
+/* Exponer para pruebas */
+window._cami={parseImperialToInches:parseImperialToInches,parseDescripcion:parseDescripcion,catMarkFromItem:catMarkFromItem,medStats:medStats,markStats:markStats,applyItems:function(i,p){return applyItems(i,p,'test')}};
+</script>
+</body>
+</html>
