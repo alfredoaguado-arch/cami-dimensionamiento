@@ -1,0 +1,18 @@
+CAMI Dimensional P6 — app para iPad (funciona sin internet)
+
+INSTALAR (una sola vez, con internet)
+1. Sube esta carpeta completa a un sitio web con https (por ejemplo GitHub Pages,
+   en el mismo repo de los módulos CAMI, carpeta /cami-dimensional-p6/).
+2. En el iPad abre la dirección en Safari, espera el aviso verde
+   "App lista para usarse sin internet" (descarga ~40 MB con planos).
+3. Botón Compartir > "Agregar a pantalla de inicio".
+Desde ahí se abre desde el ícono DIM, a pantalla completa, sin Safari y sin internet.
+
+DATOS
+- Mediciones y fotos se guardan en el iPad.
+- Excel / PDF: pestaña 3 > Generar > "Compartir / Guardar…" > Archivos, Drive o Correo.
+- Respaldo: pestaña 3 > Generar respaldo (guárdalo en Drive al final de cada jornada).
+  No borres los datos de Safari ni la app sin antes generar el respaldo.
+
+ACTUALIZAR
+Sube los archivos nuevos y cambia VERSION en sw.js; el iPad la toma la siguiente vez que abra la app con internet.

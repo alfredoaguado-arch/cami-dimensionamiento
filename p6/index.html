@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Dimensional P6 Harrison</title>
+<meta name="theme-color" content="#21353E">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dim P6">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<script>
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').then(reg=>{ reg.addEventListener('updatefound',()=>{ const w=reg.installing; if(!w) return; w.addEventListener('statechange',()=>{ if(w.state==='activated'){ const n=document.getElementById('swNote'); if(n){ n.textContent='App lista para usarse sin internet'; n.hidden=false; setTimeout(()=>n.hidden=true,4000);} } }); }); }).catch(()=>{}); }); }
+</script>
+<style>
+html{-webkit-text-size-adjust:100%}
+body{overscroll-behavior-y:none}
+:root{
+  --navy:#21353E; --navy-2:#2E4853; --orange:#F37933; --orange-ink:#B8531A;
+  --paper:#FAF6EE; --surface:#FFFFFF; --surface-2:#F2EDE3; --rule:#E2DBCD; --rule-2:#CFC6B4;
+  --ink:#1D2A30; --ink-soft:#5B6A70; --ink-faint:#8A969B;
+  --ok:#1F7A4D; --ok-bg:#E3F2EA; --nok:#B3261E; --nok-bg:#FBE6E4; --pend:#8A6D12; --pend-bg:#F8F0D6;
+  --focus:#F37933;
+  --font-d:-apple-system,"SF Pro Display",system-ui,"Segoe UI",Roboto,sans-serif; --font-b:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif; --font-m:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --navy:#0F1C22; --navy-2:#1A2B33; --orange:#F58A4B; --orange-ink:#F9A472;
+    --paper:#131C20; --surface:#1A252A; --surface-2:#22303A; --rule:#2C3B43; --rule-2:#3A4B54;
+    --ink:#E9E4DA; --ink-soft:#A9B4B8; --ink-faint:#7C898E;
+    --ok:#5CC98E; --ok-bg:#16352A; --nok:#F2837A; --nok-bg:#3E1D1B; --pend:#E3C45E; --pend-bg:#3A3217;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --navy:#0F1C22; --navy-2:#1A2B33; --orange:#F58A4B; --orange-ink:#F9A472;
+  --paper:#131C20; --surface:#1A252A; --surface-2:#22303A; --rule:#2C3B43; --rule-2:#3A4B54;
+  --ink:#E9E4DA; --ink-soft:#A9B4B8; --ink-faint:#7C898E;
+  --ok:#5CC98E; --ok-bg:#16352A; --nok:#F2837A; --nok-bg:#3E1D1B; --pend:#E3C45E; --pend-bg:#3A3217;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-b);font-size:15px;line-height:1.45;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:#21353E;color:#FAF6EE;padding:10px 16px}
+.top-in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-family:var(--font-d);font-weight:700;font-size:17px;letter-spacing:.01em}
+.brand .dot{color:#F37933}
+.brand small{display:block;font-family:var(--font-b);font-weight:500;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(250,246,238,.7)}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.top .chip{background:rgba(250,246,238,.12);color:#FAF6EE}
+.top .chip.warn{background:#F37933;color:#21353E}
+.tabs{display:flex;gap:4px;max-width:1100px;margin:8px auto 0;overflow-x:auto}
+.tab{background:transparent;border:0;color:rgba(250,246,238,.75);padding:8px 12px;border-radius:8px 8px 0 0;font-family:var(--font-d);font-weight:600;font-size:13.5px;cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--paper);color:var(--ink)}
+.tab .n{font-family:var(--font-m);font-size:11px;opacity:.7;margin-right:4px}
+main{max-width:1100px;margin:0 auto;padding-inline:16px;padding-block:18px 60px}
+.view{display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--font-d);text-wrap:balance;margin:0}
+h2{font-size:18px;font-weight:700}
+h3{font-size:14px;font-weight:600;letter-spacing:.02em}
+.eyebrow{font-family:var(--font-d);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-ink)}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.hint{color:var(--ink-soft);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label,.lbl{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft)}
+input[type=text],input[type=date],input[type=search],input[type=number],select,textarea{background:var(--surface);border:1px solid var(--rule-2);border-radius:8px;padding:9px 10px;min-width:0;width:100%}
+textarea{min-height:64px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--rule-2);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--ink-faint)}
+.btn.primary{background:#F37933;border-color:#F37933;color:#1D2A30}
+.btn.dark{background:var(--navy);border-color:var(--navy);color:#FAF6EE}
+.btn.ghost{background:transparent}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;letter-spacing:.03em}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.nok{background:var(--nok-bg);color:var(--nok)} .pill.pend{background:var(--pend-bg);color:var(--pend)} .pill.neu{background:var(--surface-2);color:var(--ink-soft)}
+.mono{font-family:var(--font-m);font-variant-numeric:tabular-nums}
+.note{border-left:3px solid var(--orange);background:var(--surface-2);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13px;color:var(--ink)}
+/* reportes */
+.replist{display:flex;flex-direction:column;gap:6px}
+.repitem{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--surface);cursor:pointer;text-align:left;width:100%}
+.repitem[aria-current="true"]{border-color:var(--orange);box-shadow:inset 3px 0 0 var(--orange)}
+/* lotes */
+.lot{border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.lot-h{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 12px;background:var(--surface-2);cursor:pointer}
+.lot-h .t{font-family:var(--font-d);font-weight:600;font-size:14px}
+.lot-stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft)}
+.lot-stats b{color:var(--ink);font-family:var(--font-m)}
+.lot-b{padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.marks-ck{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px;max-height:240px;overflow:auto;font-size:13px}
+.marks-ck label{display:flex;gap:6px;align-items:center}
+.sample{display:flex;flex-wrap:wrap;gap:6px}
+.unit{font-family:var(--font-m);font-size:12.5px;border:1px solid var(--rule-2);border-radius:6px;padding:3px 8px;background:var(--surface);cursor:pointer}
+.unit.ok{border-color:var(--ok);color:var(--ok);background:var(--ok-bg)}
+.unit.nok{border-color:var(--nok);color:var(--nok);background:var(--nok-bg)}
+.unit.pend{border-color:var(--pend);color:var(--pend);background:var(--pend-bg)}
+/* medir */
+.mk-head{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.mk-title{font-family:var(--font-d);font-weight:700;font-size:24px;line-height:1.1}
+.mk-meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--ink-soft)}
+.mk-meta b{color:var(--ink);font-weight:600}
+.two{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+.plwrap{overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y;border:1px solid var(--rule);border-radius:8px;background:#fff;max-height:62vh}
+.plano-cv{display:block;width:100%;max-width:none;height:auto;cursor:crosshair}
+.zbar .btn{min-width:40px;justify-content:center}
+.ltr{font-family:var(--font-d);font-weight:800;font-size:14px;min-width:34px;height:34px;border-radius:50%;border:2px solid #D0461B;color:#D0461B;background:var(--surface);cursor:pointer}
+.ltr.noref{border-style:dashed;color:var(--ink-faint);border-color:var(--ink-faint)}
+tr.na-row td{opacity:.55}
+tr.na-row td:first-child,tr.na-row td:last-child{opacity:1}
+.na-b.on{background:var(--ink-soft);color:#fff;border-color:var(--ink-soft)}
+.outrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--surface-2)}
+.swnote{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);background:#1F7A4D;color:#fff;padding:6px 12px;border-radius:8px;font-size:13px;z-index:70}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--rule);border-radius:8px}
+table.meas{border-collapse:collapse;width:100%;min-width:1100px;font-size:13.5px}
+table.meas th{background:var(--navy);color:#FAF6EE;font-family:var(--font-d);font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:7px 6px;text-align:center;white-space:nowrap}
+table.meas th.l{text-align:left}
+table.meas td{border-top:1px solid var(--rule);padding:4px 5px;text-align:center;vertical-align:middle}
+table.meas td.l{text-align:left}
+table.meas input{padding:6px 6px;text-align:center;font-family:var(--font-m);font-variant-numeric:tabular-nums;border-radius:6px}
+table.meas input.lbl-in{text-align:left;font-family:var(--font-b);min-width:190px}
+table.meas input.nom{width:118px} table.meas input.tol{width:64px} table.meas input.rd{width:96px;font-weight:600;border-width:1.5px}
+table.meas input.rd.ok{border-color:var(--ok);background:var(--ok-bg)} table.meas input.rd.nok{border-color:var(--nok);background:var(--nok-bg)}
+table.meas select{padding:5px 4px;font-size:12.5px;width:auto}
+.clause{font-size:11px;color:var(--ink-faint);line-height:1.25;width:260px;min-width:260px;text-align:left}
+.x{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:16px;padding:2px 6px}
+.checks{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 14px}
+.ck{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--rule)}
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.seg button[aria-pressed="true"].o{background:var(--ok);color:#fff}
+.seg button[aria-pressed="true"].n{background:var(--nok);color:#fff}
+.seg button[aria-pressed="true"].a{background:var(--ink-soft);color:#fff}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.ph{position:relative;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--surface-2);display:flex;flex-direction:column}
+.ph img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.ph select{border:0;border-top:1px solid var(--rule);border-radius:0;font-size:12px;padding:6px}
+.ph .x{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px}
+.addph{border:1.5px dashed var(--rule-2);border-radius:8px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:var(--ink-soft);font-weight:600;font-size:13px;background:transparent}
+.bom{font-size:12.5px;border-collapse:collapse;width:100%}
+.bom td{border-top:1px solid var(--rule);padding:4px 6px}
+.bom td.q{font-family:var(--font-m);text-align:right}
+.stickybar{position:sticky;bottom:0;background:var(--paper);border-top:1px solid var(--rule);padding:10px 0 calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;flex-wrap:wrap;align-items:center;z-index:5}
+.status-big{font-family:var(--font-d);font-weight:700;font-size:14px}
+/* entregables */
+table.lst{border-collapse:collapse;width:100%;font-size:13.5px;min-width:560px}
+table.lst th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:6px 8px;border-bottom:2px solid var(--rule-2)}
+table.lst td{padding:7px 8px;border-bottom:1px solid var(--rule)}
+.prog{font-family:var(--font-m);font-size:12.5px;color:var(--ink-soft);white-space:pre-wrap}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(10,18,22,.72);z-index:50;display:flex;flex-direction:column;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(10px + env(safe-area-inset-bottom,0px))}
+.modal-bar{display:flex;gap:8px;align-items:center;color:#FAF6EE;padding-bottom:8px;flex-wrap:wrap}
+.modal-body{flex:1;overflow:auto;background:#fff;border-radius:8px}
+.modal-body img{max-width:none;display:block}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:#FAF6EE;padding:9px 16px;border-radius:8px;font-size:13.5px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.btn.danger{background:var(--nok);border-color:var(--nok);color:#fff}
+.btn.danger:disabled{opacity:.4}
+.btn.dz{color:var(--nok)}
+.repline{display:flex;gap:6px;align-items:stretch}
+.repline .repitem{flex:1;min-width:0}
+.danger-box{border:1.5px solid var(--nok);background:var(--nok-bg);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.danger-box .dz-t{font-family:var(--font-d);font-weight:700;color:var(--nok)}
+.danger-box .dz-d{font-size:13.5px}
+.danger-box input{max-width:260px;font-family:var(--font-m)}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:var(--nok-bg);border:1px solid var(--nok);border-radius:8px;padding:8px 10px;font-size:13px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brand">CAMI<span class="dot">.</span> Dimensional P6<small>Harrison OWOW · QC en taller · sin internet</small></div>
+    <div class="spacer"></div>
+    <span class="chip" id="chipFolio">Sin reporte</span>
+    <span class="chip" id="chipSync">Conectando…</span>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-v="rep" aria-selected="true"><span class="n">1</span>Reporte y muestreo</button>
+    <button class="tab" role="tab" data-v="med" aria-selected="false"><span class="n">2</span>Medir marca</button>
+    <button class="tab" role="tab" data-v="ent" aria-selected="false"><span class="n">3</span>Excel y PDF</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ============ 1 REPORTE ============ -->
+  <section class="view" id="v-rep">
+    <div class="panel" id="repPick">
+      <div class="row"><h2>Reportes de liberación</h2><div class="spacer"></div><button class="btn sm" id="btnNewRep">+ Nuevo reporte</button></div>
+      <div class="replist" id="repList"></div>
+    </div>
+
+    <div class="panel" id="repForm">
+      <div><div class="eyebrow">Encabezado controlado · bilingüe en los entregables</div><h2 id="repTitle">Nuevo reporte</h2></div>
+      <div class="grid">
+        <div class="f"><label for="h_proyecto">Proyecto</label><input type="text" id="h_proyecto"></div>
+        <div class="f"><label for="h_cliente">Cliente</label><input type="text" id="h_cliente"></div>
+        <div class="f"><label for="h_oc">OC / PO</label><input type="text" id="h_oc"></div>
+        <div class="f"><label for="h_embarque">Embarque / Delivery</label><input type="text" id="h_embarque"></div>
+        <div class="f"><label for="h_fecha">Fecha</label><input type="date" id="h_fecha"></div>
+        <div class="f"><label for="h_lugar">Lugar de inspección</label><input type="text" id="h_lugar"></div>
+        <div class="f"><label for="h_inspector">Inspector QC (elaboró)</label><input type="text" id="h_inspector" placeholder="Nombre"></div>
+        <div class="f"><label for="h_reviso">Revisó</label><input type="text" id="h_reviso" placeholder="Nombre"></div>
+        <div class="f"><label for="h_aprobo">Aprobó</label><input type="text" id="h_aprobo" placeholder="Nombre"></div>
+      </div>
+      <h3>Instrumento de medición</h3>
+      <div class="grid">
+        <div class="f"><label for="h_inst">Instrumento</label><input type="text" id="h_inst"></div>
+        <div class="f"><label for="h_serie">No. de serie / ID</label><input type="text" id="h_serie" placeholder="Anotar del equipo"></div>
+        <div class="f"><label for="h_res">Resolución</label><input type="text" id="h_res" placeholder="p. ej. 1/32 in"></div>
+        <div class="f"><label for="h_cal">Certificado de calibración</label><input type="text" id="h_cal"></div>
+      </div>
+      <div class="note" id="calNote">Sin certificado vigente: el reporte lo declara como <b>PENDIENTE</b> en el encabezado y en la regla de decisión, en lugar de omitirlo.</div>
+      <h3>Plan de muestreo</h3>
+      <div class="grid">
+        <div class="f"><label for="h_plan">Norma</label><select id="h_plan"><option value="MARCA">100% de las marcas · 1 pieza por marca</option><option value="Z14">ANSI/ASQ Z1.4 · muestreo simple, normal</option><option value="100">100% (todas las piezas)</option></select></div>
+        <div class="f"><label for="h_nivel">Nivel de inspección</label><select id="h_nivel"><option value="II">General II</option></select></div>
+        <div class="f"><label for="h_aql">AQL</label><select id="h_aql"><option value="2.5">2.5</option><option value="1.0">1.0</option></select></div>
+      </div>
+      <div class="hint">Con “100% de las marcas” se mide una pieza de cada marca, elegida al azar. Si esa pieza sale rechazada, la app agrega el resto de las piezas de esa marca. Nivel y AQL solo aplican a Z1.4.</div>
+      <div class="row"><button class="btn primary" id="btnSaveRep">Crear reporte</button><span class="hint" id="repSaved"></span></div>
+    </div>
+
+    <div class="panel" id="lotPanel" hidden>
+      <div class="row"><div><div class="eyebrow">ANSI/ASQ Z1.4</div><h2>Lotes y muestra</h2></div></div>
+      <div class="hint">Desmarca las marcas que <b>no</b> van en este embarque. Luego sortea la muestra de cada lote; las piezas sorteadas aparecen en “Medir marca”.</div>
+      <div id="lots" class="view" style="gap:8px"></div>
+    </div>
+  </section>
+
+  <!-- ============ 2 MEDIR ============ -->
+  <section class="view" id="v-med" hidden>
+    <div class="panel">
+      <div class="row" style="align-items:flex-end">
+        <div class="f" style="flex:2;min-width:180px"><label for="mkSearch">Marca (sub-ensamble)</label><input type="search" id="mkSearch" list="dlMarks" placeholder="p. ej. 610B3" autocomplete="off"></div>
+        <div class="f" style="width:110px"><label for="mkPieza">Pieza</label><select id="mkPieza"></select></div>
+        <button class="btn dark" id="btnOpenMk">Abrir</button>
+      </div>
+      <datalist id="dlMarks"></datalist>
+      <details id="pendWrap" hidden><summary class="lbl" style="cursor:pointer">Muestra pendiente de medir · <span id="pendN"></span> piezas (toca para ver)</summary><div class="sample" id="pendUnits" style="max-height:260px;overflow:auto;margin-top:8px"></div></details>
+    </div>
+    <div id="mkHost"></div>
+  </section>
+
+  <!-- ============ 3 ENTREGABLES ============ -->
+  <section class="view" id="v-ent" hidden>
+    <div class="panel">
+      <div><div class="eyebrow">Entregables</div><h2>Excel y PDF del reporte</h2></div>
+      <div class="hint">Cada marca medida lleva su tabla de cotas con LSL/USL y la cláusula de cada tolerancia, sus verificaciones, sus fotos y su plano Rev 0. El Excel trae una hoja por marca; el PDF agrega el plano original como página vectorial.</div>
+      <div class="row"><button class="btn primary" id="btnXlsx">Generar Excel</button><button class="btn dark" id="btnPdf">Generar PDF</button></div>
+      <div class="prog" id="prog"></div>
+      <div class="view" id="outFiles" style="gap:6px"></div>
+      <div class="hint">Al terminar, toca <b>Compartir / Guardar…</b> y elige “Guardar en Archivos”, Google Drive o Correo. Todo se genera en el iPad, sin internet.</div>
+    </div>
+    <div class="panel">
+      <div><div class="eyebrow">Respaldo</div><h3>Respaldo del reporte</h3></div>
+      <div class="hint">Los datos y fotos viven en este iPad. Genera un respaldo al terminar cada jornada y guárdalo en Drive. Si cambias de iPad o borras datos de Safari, restáuralo desde aquí.</div>
+      <div class="row"><button class="btn" id="btnBak">Generar respaldo</button><button class="btn ghost" id="btnRes">Restaurar respaldo…</button></div>
+      <input type="file" id="bakIn" accept="application/json,.json" hidden>
+    </div>
+    <div class="panel">
+      <h3>Resumen del reporte</h3>
+      <div id="entSummary"></div>
+      <div class="tbl-wrap"><table class="lst" id="entTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="planoModal" hidden>
+  <div class="modal-bar"><b id="pmTitle">Plano</b><div class="spacer"></div>
+    <button class="btn sm" id="pmOut">−</button><span class="mono" id="pmZ">100%</span><button class="btn sm" id="pmIn">+</button>
+    <a class="btn sm" id="pmPdf" href="#" target="_blank" rel="noopener">PDF original</a>
+    <button class="btn sm primary" id="pmClose">Cerrar</button></div>
+  <div class="modal-body" id="pmBody" style="touch-action:pan-x pan-y"><canvas id="pmCv" style="display:block;width:100%;max-width:none"></canvas></div>
+</div>
+<input type="file" id="fileIn" accept="image/*" capture="environment" multiple hidden>
+<div class="toast" id="toast"></div>
+
+<div class="swnote" id="swNote" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
